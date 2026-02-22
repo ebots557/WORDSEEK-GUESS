@@ -1,6 +1,7 @@
 pyrogram
 tgcrypto
 pymongo[srv]
-flask
 motor
 requests
+flask
+python-dotenv
