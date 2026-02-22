@@ -48,14 +48,14 @@ async def broadcast(client, message):
         try:
             await msg.forward(user["_id"])
             done += 1
-            await asyncio.sleep(0.3)
+            await asyncio.sleep(2)
         except: pass
     
     async for group in all_groups:
         try:
             await msg.forward(group["_id"])
             done += 1
-            await asyncio.sleep(1.5)
+            await asyncio.sleep(2.5)
         except: pass
         
     await message.reply_text(f"✅ **ʙʀᴏᴀᴅᴄᴀsᴛ ᴄᴏᴍᴘʟᴇᴛᴇ ɴx**\nsᴇɴᴛ ᴛᴏ {done} ᴄʜᴀᴛs.")
@@ -82,7 +82,9 @@ async def seekauth_cmd(client, message):
                 u = await client.get_users(u_id)
                 user_list += f"• {u.mention} (`{u_id}`)\n"
             except:
-                user_list += f"• Unknown (`{u_id}`)\n"
+                # Cleanup: If user is deleted or not found, remove from DB
+                await auth_db.update_one({"_id": chat_id}, {"$pull": {"users": u_id}})
+                continue
         return await message.reply_text(f"📝 **ᴀᴜᴛʜᴏʀɪᴢᴇᴅ ᴜsᴇʀs ɴx:**\n\n{user_list}")
 
     # Identify User (Reply or Mention)
@@ -121,6 +123,7 @@ async def remove_all_auth(client, message):
     if not await is_admin(message.chat.id, message.from_user.id, client):
         return await message.reply_text("❌ **ᴏɴʟʏ ᴀᴅᴍɪɴs ᴄᴀɴ ᴜsᴇ ᴛʜɪs ᴄᴏᴍᴍᴀɴᴅ ɴx**")
     
+    # Specific group cleanup from DB
     await auth_db.delete_one({"_id": message.chat.id})
     await message.reply_text("🗑️ **ᴀʟʟ ᴀᴜᴛʜᴏʀɪᴢᴇᴅ ᴜsᴇʀs ʜᴀᴠᴇ ʙᴇᴇɴ ʀᴇᴍᴏᴠᴇᴅ ғʀᴏᴍ ᴛʜɪs ɢʀᴏᴜᴘ ɴx.**")
 
