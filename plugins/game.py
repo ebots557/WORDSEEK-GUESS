@@ -3,6 +3,7 @@ import random
 import requests
 import datetime
 import os
+import time
 from pyrogram import Client, filters, enums
 from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton
 from database import save_score, scores, is_user_auth # is_user_auth import kiya admin check ke liye
@@ -76,6 +77,19 @@ def get_colored_boxes(guess, target):
     # Single space for half-space look (boxes stay close)
     return " ".join(result)
 
+async def auto_end_game(client, chat_id):
+    """Logic to end game if no activity for 10+5 minutes"""
+    await asyncio.sleep(600) # 10 Minutes wait
+    if chat_id in active_games:
+        current_time = time.time()
+        if current_time - active_games[chat_id]["last_activity"] >= 600:
+            await client.send_message(chat_id, "ɴᴏ ᴏɴᴇ ᴘʟᴀʏ ᴛʜɪs ɢᴀᴍᴇ, sᴏ ᴛʜɪs ɢᴀᴍᴇ ᴡɪʟʟ ᴇɴᴅ ɪɴ 5 ᴍɪɴᴜᴛᴇs.")
+            await asyncio.sleep(300) # 5 Minutes more wait
+            if chat_id in active_games and time.time() - active_games[chat_id]["last_activity"] >= 900:
+                word = active_games[chat_id]["word"]
+                del active_games[chat_id]
+                await client.send_message(chat_id, f"🛑 **ɢᴀᴍᴇ ᴇɴᴅᴇᴅ ᴅᴜᴇ ᴛᴏ ɪɴᴀᴄᴛɪᴠɪᴛʏ!**\nᴛʜᴇ ᴡᴏʀᴅ ᴡᴀs: **{word}**")
+
 @Client.on_message(filters.command("new") & (filters.group | filters.private))
 async def start_new_game(client, message):
     chat_id = message.chat.id
@@ -83,7 +97,6 @@ async def start_new_game(client, message):
         return await message.reply_text("ᴀ ɢᴀᴍᴇ ɪs ᴀʟʀᴇᴀᴅʏ ʀᴜɴɴɪɴɢ! ᴇɴᴅ ɪᴛ ᴡɪᴛʜ /end ғɪʀsᴛ.", quote=True)
     
     word = get_unlimited_word()
-    # /new always 30 attempts
     max_att = 30
     
     active_games[chat_id] = {
@@ -93,9 +106,11 @@ async def start_new_game(client, message):
         "attempts": 0,
         "max_attempts": max_att,
         "status": "playing",
-        "is_daily": False
+        "is_daily": False,
+        "last_activity": time.time()
     }
     await message.reply_text(f"🎯 **ᴡᴏʀᴅsᴇᴇᴋ sᴛᴀʀᴛᴇᴅ!**\nɢᴜᴇss ᴛʜᴇ 𝟻-ʟᴇᴛᴛᴇʀ ᴡᴏʀᴅ. ʏᴏᴜ ʜᴀᴠᴇ **{max_att}** ᴀᴛᴛᴇᴍᴘᴛs.", quote=True)
+    asyncio.create_task(auto_end_game(client, chat_id))
 
 @Client.on_message(filters.command("end"))
 async def end_game(client, message):
@@ -128,7 +143,6 @@ async def end_game(client, message):
         phonetic, meaning = get_word_definition(word)
         del active_games[chat_id]
         end_text = f"🛑 **ɢᴀᴍᴇ ᴇɴᴅᴇᴅ!**\n\n<blockquote>**ᴛʜᴇ ᴡᴏʀᴅ ᴡᴀs:** {word}\n**ᴍᴇᴀɴɪɴɢ:** {meaning}</blockquote>"
-        # Forced quote for end message
         await client.send_message(chat_id, end_text, reply_to_message_id=message.id)
     else:
         await message.reply_text("❌ ᴏɴʟʏ ᴀᴅᴍɪɴs ᴏʀ ᴀᴜᴛʜᴏʀɪᴢᴇᴅ ᴜsᴇʀs ᴄᴀɴ ᴇɴᴅ ᴛʜᴇ ɢᴀᴍᴇ.", quote=True)
@@ -155,6 +169,7 @@ async def handle_guess(client, message):
     
     game = active_games[chat_id]
     target = game["word"]
+    game["last_activity"] = time.time()
 
     if guess in game["used_words"]:
         return await message.reply_text("ᴛʜɪs ɪs ᴀʟʀᴇᴀᴅʏ ɢᴜᴇssᴇᴅ ʙʏ sᴏᴍᴇᴏɴᴇ.", quote=True)
@@ -169,11 +184,10 @@ async def handle_guess(client, message):
         pts = max(5, 20 - game["attempts"])
         await save_score(message.from_user.id, chat_id, pts)
         
-        # Fixed Reaction Logic
         try:
             await client.send_reaction(chat_id, message.id, "🎉")
-        except Exception as e:
-            print(f"Reaction Error: {e}")
+        except:
+            pass
             
         phonetic, meaning = get_word_definition(target)
         
@@ -189,12 +203,7 @@ sᴛᴀʀᴛ ᴡɪᴛʜ /new
 **{target.lower()}** {phonetic}
 **ᴍᴇᴀɴɪɴɢ:** {meaning}</blockquote>
 """
-        # Forced quote for win message
-        await client.send_message(
-            chat_id=chat_id,
-            text=win_text,
-            reply_to_message_id=message.id
-        )
+        await client.send_message(chat_id, win_text, reply_to_message_id=message.id)
         del active_games[chat_id]
         return
 
@@ -203,7 +212,6 @@ sᴛᴀʀᴛ ᴡɪᴛʜ /new
     game["guesses"].append(f"{boxes}  **{guess}**") 
     
     if game["attempts"] >= game["max_attempts"]:
-        # Forced quote for game over
         await client.send_message(chat_id, f"❌ ɢᴀᴍᴇ ᴏᴠᴇʀ! ᴛʜᴇ ᴡᴏʀᴅ ᴡᴀs **{target}**", reply_to_message_id=message.id)
         del active_games[chat_id]
     else:
@@ -239,7 +247,8 @@ async def daily_game(client, message):
         "attempts": 0,
         "max_attempts": 6,
         "status": "playing",
-        "is_daily": True
+        "is_daily": True,
+        "last_activity": time.time()
     }
     await scores.update_one(
         {"user_id": user_id, "type": f"daily_played_{today}"},
@@ -247,3 +256,4 @@ async def daily_game(client, message):
         upsert=True
     )
     await message.reply_text("🎯 **ᴡᴏʀᴅsᴇᴇᴋ ᴏғ ᴛʜᴇ ᴅᴀʏ sᴛᴀʀᴛᴇᴅ!**\nɢᴜᴇss ᴛʜᴇ ᴜɴɪǫᴜᴇ 𝟻-ʟᴇᴛᴛᴇʀ ᴡᴏʀᴅ. ʏᴏᴜ ʜᴀᴠᴇ 𝟼 ᴀᴛᴛᴇᴍᴘᴛs.", quote=True)
+    asyncio.create_task(auto_end_game(client, message.chat.id))
