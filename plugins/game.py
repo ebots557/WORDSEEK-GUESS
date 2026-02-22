@@ -83,12 +83,18 @@ async def auto_end_game(client, chat_id):
     if chat_id in active_games:
         current_time = time.time()
         if current_time - active_games[chat_id]["last_activity"] >= 600:
-            await client.send_message(chat_id, "ɴᴏ ᴏɴᴇ ᴘʟᴀʏ ᴛʜɪs ɢᴀᴍᴇ, sᴏ ᴛʜɪs ɢᴀᴍᴇ ᴡɪʟʟ ᴇɴᴅ ɪɴ 5 ᴍɪɴᴜᴛᴇs.")
+            try:
+                await client.send_message(chat_id, "ɴᴏ ᴏɴᴇ ᴘʟᴀʏ ᴛʜɪs ɢᴀᴍᴇ, sᴏ ᴛʜɪs ɢᴀᴍᴇ ᴡɪʟʟ ᴇɴᴅ ɪɴ 5 ᴍɪɴᴜᴛᴇs.")
+            except:
+                pass
             await asyncio.sleep(300) # 5 Minutes more wait
             if chat_id in active_games and time.time() - active_games[chat_id]["last_activity"] >= 900:
                 word = active_games[chat_id]["word"]
                 del active_games[chat_id]
-                await client.send_message(chat_id, f"🛑 **ɢᴀᴍᴇ ᴇɴᴅᴇᴅ ᴅᴜᴇ ᴛᴏ ɪɴᴀᴄᴛɪᴠɪᴛʏ!**\nᴛʜᴇ ᴡᴏʀᴅ ᴡᴀs: **{word}**")
+                try:
+                    await client.send_message(chat_id, f"🛑 **ɢᴀᴍᴇ ᴇɴᴅᴇᴅ ᴅᴜᴇ ᴛᴏ ɪɴᴀᴄᴛɪᴠɪᴛʏ!**\nᴛʜᴇ ᴡᴏʀᴅ ᴡᴀs: **{word}**")
+                except:
+                    pass
 
 @Client.on_message(filters.command("new") & (filters.group | filters.private))
 async def start_new_game(client, message):
@@ -184,10 +190,15 @@ async def handle_guess(client, message):
         pts = max(5, 20 - game["attempts"])
         await save_score(message.from_user.id, chat_id, pts)
         
-        try:
-            await client.send_reaction(chat_id, message.id, "🎉")
-        except:
-            pass
+        # Super Stable Dynamic Reaction Logic
+        emojis = ["🎉", "💯", "👀", "❤️", "⚡", "🔥", "🦄", "🕊️", "🏆", "❤️‍🔥", "🍓", "🤗", "🤝", "🗿", "💘"]
+        random.shuffle(emojis)
+        for emo in emojis:
+            try:
+                await client.send_reaction(chat_id, message.id, emo)
+                break # Reaction successful, exit loop
+            except:
+                continue # Try next emoji if this one is not allowed
             
         phonetic, meaning = get_word_definition(target)
         
@@ -203,7 +214,11 @@ sᴛᴀʀᴛ ᴡɪᴛʜ /new
 **{target.lower()}** {phonetic}
 **ᴍᴇᴀɴɪɴɢ:** {meaning}</blockquote>
 """
-        await client.send_message(chat_id, win_text, reply_to_message_id=message.id)
+        try:
+            await client.send_message(chat_id, win_text, reply_to_message_id=message.id)
+        except:
+            await message.reply_text(win_text) # Safe fallback
+
         del active_games[chat_id]
         return
 
@@ -212,7 +227,10 @@ sᴛᴀʀᴛ ᴡɪᴛʜ /new
     game["guesses"].append(f"{boxes}  **{guess}**") 
     
     if game["attempts"] >= game["max_attempts"]:
-        await client.send_message(chat_id, f"❌ ɢᴀᴍᴇ ᴏᴠᴇʀ! ᴛʜᴇ ᴡᴏʀᴅ ᴡᴀs **{target}**", reply_to_message_id=message.id)
+        try:
+            await client.send_message(chat_id, f"❌ ɢᴀᴍᴇ ᴏᴠᴇʀ! ᴛʜᴇ ᴡᴏʀᴅ ᴡᴀs **{target}**", reply_to_message_id=message.id)
+        except:
+            await message.reply_text(f"❌ ɢᴀᴍᴇ ᴏᴠᴇʀ! ᴛʜᴇ ᴡᴏʀᴅ ᴡᴀs **{target}**")
         del active_games[chat_id]
     else:
         history = "\n".join(game["guesses"])
