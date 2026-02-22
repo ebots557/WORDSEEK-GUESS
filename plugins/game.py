@@ -3,8 +3,8 @@ import random
 import requests
 import datetime
 import os
-from pyrogram import Client, filters
-from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton
+from pyrogram import Client, filters, enums
+from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, ReactionTypeEmoji
 from database import save_score, scores, is_user_auth # is_user_auth import kiya admin check ke liye
 
 # Game state storage
@@ -55,7 +55,7 @@ def get_word_definition(word):
     return f"/{word.lower()}/", "ᴅᴇғɪɴɪᴛɪᴏɴ ɴᴏᴛ ғᴏᴜɴᴅ.", "ɴ/ᴀ"
 
 def get_colored_boxes(guess, target):
-    """Wordle Algorithm: Handles duplicate letters and adds wide spacing like the image"""
+    """Wordle Algorithm with specific spacing: 🟥  🟨  🟥  🟥  🟨"""
     guess = guess[:5].upper()
     target = target.upper()
     result = ["🟥"] * 5
@@ -75,8 +75,7 @@ def get_colored_boxes(guess, target):
             result[i] = "🟨"
             target_list[target_list.index(guess_list[i])] = None
             
-    # Using Unicode Em Space for perfect gap like the screenshot
-    return "\u2001".join(result)
+    return "  ".join(result) # Double space for exact gap
 
 @Client.on_message(filters.command("new") & (filters.group | filters.private))
 async def start_new_game(client, message):
@@ -85,7 +84,7 @@ async def start_new_game(client, message):
         return await message.reply_text("ᴀ ɢᴀᴍᴇ ɪs ᴀʟʀᴇᴀᴅʏ ʀᴜɴɴɪɴɢ! ᴇɴᴅ ɪᴛ ᴡɪᴛʜ /end ғɪʀsᴛ.")
     
     word = get_unlimited_word()
-    max_att = 30 if message.chat.type != "private" else 6
+    max_att = 30 if message.chat.type != enums.ChatType.PRIVATE else 6
     
     active_games[chat_id] = {
         "word": word,
@@ -93,7 +92,8 @@ async def start_new_game(client, message):
         "used_words": set(), 
         "attempts": 0,
         "max_attempts": max_att,
-        "status": "playing"
+        "status": "playing",
+        "is_daily": False
     }
     await message.reply_text(f"🎯 **ᴡᴏʀᴅsᴇᴇᴋ sᴛᴀʀᴛᴇᴅ!**\nɢᴜᴇss ᴛʜᴇ 𝟻-ʟᴇᴛᴛᴇʀ ᴡᴏʀᴅ. ʏᴏᴜ ʜᴀᴠᴇ **{max_att}** ᴀᴛᴛᴇᴍᴘᴛs.")
 
@@ -102,21 +102,22 @@ async def end_game(client, message):
     chat_id = message.chat.id
     if chat_id not in active_games:
         return await message.reply_text("ɴᴏ ᴀᴄᴛɪᴠᴇ ɢᴀᴍᴇ ᴛᴏ ᴇɴᴅ.")
+    
+    # Logic: /end should not work for daily games
+    if active_games[chat_id].get("is_daily"):
+        return await message.reply_text("ᴛʜɪs ɪs ᴀ ᴅᴀɪʟʏ ɢᴀᴍᴇ. ᴜsᴇ /pausedaily ᴛᴏ sᴛᴏᴘ ɪᴛ.")
 
     user_id = message.from_user.id
     is_auth = False
     
-    # OWNER check
     if user_id == OWNER_ID:
         is_auth = True
-    # PRIVATE chat check (Fixed logic)
-    elif message.chat.type.name == "PRIVATE":
+    elif message.chat.type == enums.ChatType.PRIVATE:
         is_auth = True 
-    # GROUP Admin check
     else:
         try:
             member = await client.get_chat_member(chat_id, user_id)
-            if member.status.value in ["creator", "administrator"]:
+            if member.status in [enums.ChatMemberStatus.OWNER, enums.ChatMemberStatus.ADMINISTRATOR]:
                 is_auth = True
             elif await is_user_auth(chat_id, user_id):
                 is_auth = True
@@ -127,11 +128,20 @@ async def end_game(client, message):
         word = active_games[chat_id]["word"]
         phonetic, meaning, example = get_word_definition(word)
         del active_games[chat_id]
-        # End message in blockquote for premium feel
         end_text = f"🛑 **ɢᴀᴍᴇ ᴇɴᴅᴇᴅ!**\n\n<blockquote>**ᴛʜᴇ ᴡᴏʀᴅ ᴡᴀs:** {word}\n**ᴍᴇᴀɴɪɴɢ:** {meaning}</blockquote>"
         await message.reply_text(end_text)
     else:
         await message.reply_text("❌ ᴏɴʟʏ ᴀᴅᴍɪɴs ᴏʀ ᴀᴜᴛʜᴏʀɪᴢᴇᴅ ᴜsᴇʀs ᴄᴀɴ ᴇɴᴅ ᴛʜᴇ ɢᴀᴍᴇ.")
+
+@Client.on_message(filters.command("pausedaily") & filters.private)
+async def pause_daily(client, message):
+    chat_id = message.chat.id
+    if chat_id in active_games and active_games[chat_id].get("is_daily"):
+        word = active_games[chat_id]["word"]
+        del active_games[chat_id]
+        await message.reply_text(f"✅ **ᴅᴀɪʟʏ ɢᴀᴍᴇ ᴘᴀᴜsᴇᴅ.**\nᴛʜᴇ ᴡᴏʀᴅ ᴡᴀs: **{word}**\nʏᴏᴜ ᴄᴀɴ ᴘʟᴀʏ ʀᴇɢᴜʟᴀʀ ᴡᴏʀᴅsᴇᴇᴋ ɴᴏᴡ.")
+    else:
+        await message.reply_text("ɴᴏ ᴀᴄᴛɪᴠᴇ ᴅᴀɪʟʏ ɢᴀᴍᴇ ᴛᴏ ᴘᴀᴜsᴇ.")
 
 @Client.on_message(filters.text & (filters.group | filters.private) & ~filters.command(["start", "help", "new", "end", "leaderboard", "score", "daily", "pausedaily", "seekauth", "setgametopic", "unsetgametopic"]))
 async def handle_guess(client, message):
@@ -159,34 +169,22 @@ async def handle_guess(client, message):
         pts = max(5, 20 - game["attempts"])
         await save_score(message.from_user.id, chat_id, pts)
         
-        # Fixed Reaction Logic for better compatibility
+        # Proper Reaction Fix
         try:
-            await client.send_reaction(chat_id, message.id, "🎉")
-        except Exception:
-            pass 
+            await client.send_reaction(chat_id, message.id, emoji="🎉")
+        except Exception as e:
+            print(f"Reaction error: {e}")
             
         phonetic, meaning, example = get_word_definition(target)
         
-        win_text = f"""
-{message.from_user.mention}
-**{guess}**
-
-<blockquote>ᴄᴏɴɢʀᴀᴛs! ʏᴏᴜ ɢᴜᴇssᴇᴅ ɪᴛ ᴄᴏʀʀᴇᴄᴛʟʏ.
-ᴀᴅᴅᴇᴅ {pts} ᴛᴏ ᴛʜᴇ ʟᴇᴀᴅᴇʀʙᴏᴀʀᴅ.
-sᴛᴀʀᴛ ᴡɪᴛʜ /new
-
-**ᴄᴏʀʀᴇᴄᴛ ᴡᴏʀᴅ:** {target.lower()}
-**{target.lower()}** {phonetic}
-**ᴍᴇᴀɴɪɴɢ:** {meaning}
-**ᴇxᴀᴍᴘʟᴇ:** {example}</blockquote>
-"""
+        win_text = f"{message.from_user.mention}\n**{guess}**\n\n<blockquote>ᴄᴏɴɢʀᴀᴛs! ʏᴏᴜ ɢᴜᴇssᴇᴅ ɪᴛ ᴄᴏʀʀᴇᴄᴛʟʏ.\nᴀᴅᴅᴇᴅ {pts} ᴛᴏ ᴛʜᴇ ʟᴇᴀᴅᴇʀʙᴏᴀʀᴅ.\nsᴛᴀʀᴛ ᴡɪᴛʜ /new\n\n**ᴄᴏʀʀᴇᴄᴛ ᴡᴏʀᴅ:** {target.lower()}\n**{target.lower()}** {phonetic}\n**ᴍᴇᴀɴɪɴɢ:** {meaning}\n**ᴇxᴀᴍᴘʟᴇ:** {example}</blockquote>"
         await message.reply_text(win_text)
         del active_games[chat_id]
         return
 
     game["attempts"] += 1
     boxes = get_colored_boxes(guess, target)
-    game["guesses"].append(f"{boxes} **{guess}**") # Used Em space here too
+    game["guesses"].append(f"{boxes}  **{guess}**")
     
     if game["attempts"] >= game["max_attempts"]:
         await message.reply_text(f"❌ ɢᴀᴍᴇ ᴏᴠᴇʀ! ᴛʜᴇ ᴡᴏʀᴅ ᴡᴀs **{target}**")
@@ -194,14 +192,10 @@ sᴛᴀʀᴛ ᴡɪᴛʜ /new
     else:
         history = "\n".join(game["guesses"])
         hint_msg = ""
-        if game["max_attempts"] == 30:
-            if game["attempts"] == 20:
-                hint_msg = f"\n\n💡 **ʜɪɴᴛ (ғɪʀsᴛ ʟᴇᴛᴛᴇʀ):** It starts with '{target[0]}'"
-            elif game["attempts"] == 25:
-                hint_msg = f"\n\n💡 **ʜɪɴᴛ (ʟᴀsᴛ ʟᴇᴛᴛᴇʀ):** It ends with '{target[-1]}'"
-            elif game["attempts"] >= 27:
-                _, meaning, _ = get_word_definition(target)
-                hint_msg = f"\n\n💡 **ᴍᴇᴀɴɪɴɢ ʜɪɴᴛ:** {meaning[:60]}..." 
+        # Hint logic for both Daily and Normal games
+        if game["attempts"] >= (game["max_attempts"] - 3):
+             _, meaning, _ = get_word_definition(target)
+             hint_msg = f"\n\n💡 **ʜɪɴᴛ:** {meaning[:100]}..."
 
         await message.reply_text(f"{history}{hint_msg}", quote=True)
 
