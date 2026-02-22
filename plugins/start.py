@@ -35,7 +35,7 @@ async def start_cmd(client, message):
     buttons = [
         [InlineKeyboardButton("ᴀᴅᴅ ᴍᴇ ᴛᴏ ʏᴏᴜʀ ɢʀᴏᴜᴘ +", url=f"http://t.me/{bot_info.username}?startgroup=true")],
         [InlineKeyboardButton("ᴜᴘᴅᴀᴛᴇs ↗️", url="https://t.me/FexionBots"), InlineKeyboardButton("ʜᴇʟᴘ", callback_data="help_menu")],
-        [InlineKeyboardButton("sᴜᴘᴘᴏʀᴛ ᴄʜᴀᴛ ↗️", url="https://t.me/WordseekcChat")]
+        [InlineKeyboardButton("sᴜᴘᴘᴏʀᴛ ᴄʜᴀᴛ ↗️", url="https://t.me/WordguessnxChat")]
     ]
     await message.reply_text(START_TEXT, reply_markup=InlineKeyboardMarkup(buttons))
 
