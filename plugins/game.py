@@ -2,12 +2,16 @@ import asyncio
 import random
 import requests
 import datetime
+import os
 from pyrogram import Client, filters
-from pyrogram.types import Message
+from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton
 from database import save_score
 
 # Game state storage
 active_games = {} 
+
+# Owner ID for /end permission
+OWNER_ID = int(os.environ.get("OWNER_ID", "0"))
 
 # APIs
 DICT_API = "https://api.dictionaryapi.dev/api/v2/entries/en/"
@@ -52,6 +56,7 @@ def get_word_definition(word):
     return f"/{word.lower()}/", "ᴅᴇғɪɴɪᴛɪᴏɴ ɴᴏᴛ ғᴏᴜɴᴅ.", "ɴ/ᴀ"
 
 def get_colored_boxes(guess, target):
+    """Grid logic with gap for premium look"""
     result = ""
     for i in range(5):
         if guess[i] == target[i]:
@@ -60,9 +65,10 @@ def get_colored_boxes(guess, target):
             result += "🟨"
         else:
             result += "🟥"
-    return result
+        result += " " # Ye gap box ko mix hone se bachayega
+    return result.strip()
 
-@Client.on_message(filters.command("new"))
+@Client.on_message(filters.command("new") & (filters.group | filters.private))
 async def start_new_game(client, message):
     chat_id = message.chat.id
     if chat_id in active_games:
@@ -71,15 +77,44 @@ async def start_new_game(client, message):
     # Unlimited words logic call
     word = get_unlimited_word()
     
+    # Attempts decide: Group me 30, Private me 6
+    max_att = 30 if message.chat.type != "private" else 6
+    
     active_games[chat_id] = {
         "word": word,
         "guesses": [],
         "attempts": 0,
+        "max_attempts": max_att,
         "status": "playing"
     }
-    await message.reply_text("🎯 **ᴡᴏʀᴅsᴇᴇᴋ sᴛᴀʀᴛᴇᴅ!**\nɢᴜᴇss ᴛʜᴇ 𝟻-ʟᴇᴛᴛᴇʀ ᴡᴏʀᴅ. ʏᴏᴜ ʜᴀᴠᴇ 𝟹𝟶 ᴀᴛᴛᴇᴍᴘᴛs.")
+    await message.reply_text(f"🎯 **ᴡᴏʀᴅsᴇᴇᴋ sᴛᴀʀᴛᴇᴅ!**\nɢᴜᴇss ᴛʜᴇ 𝟻-ʟᴇᴛᴛᴇʀ ᴡᴏʀᴅ. ʏᴏᴜ ʜᴀᴠᴇ **{max_att}** ᴀᴛᴛᴇᴍᴘᴛs.")
 
-@Client.on_message(filters.text & filters.group & ~filters.command(["start", "help", "new", "end", "leaderboard", "score", "daily", "pausedaily", "seekauth", "setgametopic", "unsetgametopic"]))
+@Client.on_message(filters.command("end"))
+async def end_game(client, message):
+    chat_id = message.chat.id
+    if chat_id not in active_games:
+        return await message.reply_text("ɴᴏ ᴀᴄᴛɪᴠᴇ ɢᴀᴍᴇ ᴛᴏ ᴇɴᴅ.")
+
+    # Permissions: Only Admin, Authorized User, or Owner
+    user_id = message.from_user.id
+    is_auth = False
+    
+    if message.chat.type == "private":
+        is_auth = True
+    else:
+        member = await client.get_chat_member(chat_id, user_id)
+        # Check if Admin or Owner
+        if member.status in ["creator", "administrator"] or user_id == OWNER_ID:
+            is_auth = True
+            
+    if is_auth:
+        word = active_games[chat_id]["word"]
+        del active_games[chat_id]
+        await message.reply_text(f"🛑 **ɢᴀᴍᴇ ᴇɴᴅᴇᴅ!**\nᴛʜᴇ ᴡᴏʀᴅ ᴡᴀs: **{word}**")
+    else:
+        await message.reply_text("❌ ᴏɴʟʏ ᴀᴅᴍɪɴs ᴏʀ ᴀᴜᴛʜᴏʀɪᴢᴇᴅ ᴜsᴇʀs ᴄᴀɴ ᴇɴᴅ ᴛʜᴇ ɢᴀᴍᴇ.")
+
+@Client.on_message(filters.text & (filters.group | filters.private) & ~filters.command(["start", "help", "new", "end", "leaderboard", "score", "daily", "pausedaily", "seekauth", "setgametopic", "unsetgametopic"]))
 async def handle_guess(client, message):
     chat_id = message.chat.id
     if chat_id not in active_games or active_games[chat_id]["status"] != "playing":
@@ -103,13 +138,12 @@ async def handle_guess(client, message):
         pts = max(5, 20 - game["attempts"])
         await save_score(message.from_user.id, pts)
         
-        # Winner Reactions: Multiple emojis logic
-        reactions = ["🎉", "🏆", "💯", "🔥", "❤️", "⚡️", "🤩", "👀"]
+        # Winner Reactions Fix
+        reactions = ["🎉", "🏆", "🔥", "⚡️", "🤩"]
         try:
-            # Bot group ke mutabik random reaction dega
-            await message.react(random.choice(reactions))
+            await client.send_reaction(chat_id, message.id, random.choice(reactions))
         except:
-            pass # Permissions issue na ho
+            pass 
             
         phonetic, meaning, example = get_word_definition(target)
         
@@ -136,21 +170,36 @@ sᴛᴀʀᴛ ᴡɪᴛʜ /new
     # Wrong guess logic (Attempts update aur grid show karna)
     game["attempts"] += 1
     boxes = get_colored_boxes(guess, target)
-    game["guesses"].append(f"{boxes} **{guess}**")
+    game["guesses"].append(f"{boxes}  **{guess}**")
     
-    if game["attempts"] >= 30:
+    if game["attempts"] >= game["max_attempts"]:
         await message.reply_text(f"❌ ɢᴀᴍᴇ ᴏᴠᴇʀ! ᴛʜᴇ ᴡᴏʀᴅ ᴡᴀs **{target}**")
         del active_games[chat_id]
     else:
-        # History show karna grid format me
+        # Premium Look: Har guess par poora grid bhejte hain bina bar bar reply kiye (optional: edit logic)
         history = "\n".join(game["guesses"])
-        await message.reply_text(f"{history}\n\n`{30 - game['attempts']} attempts remaining`")
+        await message.reply_text(f"{history}\n\n`{game['max_attempts'] - game['attempts']} attempts remaining`", quote=True)
 
 @Client.on_message(filters.command("daily") & filters.private)
 async def daily_game(client, message):
     # Daily logic: Date ke basis pe seed set karna taaki har user ko same word mile
     today = datetime.date.today().strftime("%Y-%m-%d")
     random.seed(today)
+    
+    word = get_unlimited_word()
+    random.seed() # Reset seed for other functions
+
+    if message.chat.id in active_games:
+        return await message.reply_text("ᴀ ɢᴀᴍᴇ ɪs ᴀʟʀᴇᴀᴅʏ ʀᴜɴɴɪɴɢ! /end ɪᴛ ғɪʀsᴛ.")
+
+    active_games[message.chat.id] = {
+        "word": word,
+        "guesses": [],
+        "attempts": 0,
+        "max_attempts": 6,
+        "status": "playing",
+        "is_daily": True
+    }
     
     # Screenshot 7 text logic
     await message.reply_text("🎯 **ᴡᴏʀᴅsᴇᴇᴋ ᴏғ ᴛʜᴇ ᴅᴀʏ sᴛᴀʀᴛᴇᴅ!**\nɢᴜᴇss ᴛʜᴇ 𝟻-ʟᴇᴛᴛᴇʀ ᴡᴏʀᴅ. ʏᴏᴜ ʜᴀᴠᴇ 𝟼 ᴀᴛᴛᴇᴍᴘᴛs. ɢᴏᴏᴅ ʟᴜᴄᴋ!")
