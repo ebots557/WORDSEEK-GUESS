@@ -55,7 +55,7 @@ def get_word_definition(word):
     return f"/{word.lower()}/", "ᴅᴇғɪɴɪᴛɪᴏɴ ɴᴏᴛ ғᴏᴜɴᴅ.", "ɴ/ᴀ"
 
 def get_colored_boxes(guess, target):
-    """Wordle Algorithm: Balanced spacing so boxes don't touch and aren't too far"""
+    """Wordle Algorithm: Half-space logic for perfect box alignment"""
     guess = guess[:5].upper()
     target = target.upper()
     result = ["🟥"] * 5
@@ -75,8 +75,8 @@ def get_colored_boxes(guess, target):
             result[i] = "🟨"
             target_list[target_list.index(guess_list[i])] = None
             
-    # Reduced space for perfect mobile view
-    return "  ".join(result)
+    # Single space for half-space look (boxes stay close)
+    return " ".join(result)
 
 @Client.on_message(filters.command("new") & (filters.group | filters.private))
 async def start_new_game(client, message):
@@ -171,9 +171,9 @@ async def handle_guess(client, message):
         pts = max(5, 20 - game["attempts"])
         await save_score(message.from_user.id, chat_id, pts)
         
-        # Fixed Reaction Logic
+        # Fixed Reaction Logic as requested
         try:
-            await client.send_reaction(chat_id, message.id, emoji="🎉")
+            await message.react("🎉")
         except:
             pass 
             
@@ -192,7 +192,12 @@ sᴛᴀʀᴛ ᴡɪᴛʜ /new
 **ᴍᴇᴀɴɪɴɢ:** {meaning}
 **ᴇxᴀᴍᴘʟᴇ:** {example}</blockquote>
 """
-        await message.reply_text(win_text)
+        # send_message logic with reply_to_message_id
+        await client.send_message(
+            chat_id,
+            win_text,
+            reply_to_message_id=message.id
+        )
         del active_games[chat_id]
         return
 
