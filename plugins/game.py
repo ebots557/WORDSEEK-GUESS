@@ -5,7 +5,7 @@ import datetime
 import os
 from pyrogram import Client, filters
 from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton
-from database import save_score, scores # scores import kiya cleanup ke liye
+from database import save_score, scores, is_user_auth # is_user_auth import kiya admin check ke liye
 
 # Game state storage
 active_games = {} 
@@ -15,7 +15,6 @@ OWNER_ID = int(os.environ.get("OWNER_ID", "0"))
 
 # APIs
 DICT_API = "https://api.dictionaryapi.dev/api/v2/entries/en/"
-# Hazaron random 5-letter words fetch karne ke liye API
 WORDS_API = "https://api.datamuse.com/words?sp=?????&max=1000"
 
 def get_unlimited_word():
@@ -28,8 +27,10 @@ def get_unlimited_word():
         print(f"Error fetching words: {e}")
         return random.choice(["GLINT", "POWER", "SIGHT", "GUEST", "VOCAL", "GIANT", "SHARP", "LIGHT", "CLEAN", "BRAIN"]).upper()
 
-def is_valid_word(word):
-    """Check if the word exists in dictionary"""
+def is_valid_word(word, target):
+    """Check if the word exists in dictionary or is the target word itself"""
+    if word.upper() == target.upper():
+        return True
     try:
         response = requests.get(f"{DICT_API}{word.lower()}", timeout=3)
         return response.status_code == 200
@@ -54,7 +55,9 @@ def get_word_definition(word):
     return f"/{word.lower()}/", "ᴅᴇғɪɴɪᴛɪᴏɴ ɴᴏᴛ ғᴏᴜɴᴅ.", "ɴ/ᴀ"
 
 def get_colored_boxes(guess, target):
-    """Grid logic with gap for premium look"""
+    """Grid logic fixed for 5 letters only"""
+    guess = guess[:5].upper()
+    target = target.upper()
     result = ""
     for i in range(5):
         if guess[i] == target[i]:
@@ -63,8 +66,7 @@ def get_colored_boxes(guess, target):
             result += "🟨"
         else:
             result += "🟥"
-        result += " " 
-    return result.strip()
+    return result
 
 @Client.on_message(filters.command("new") & (filters.group | filters.private))
 async def start_new_game(client, message):
@@ -94,19 +96,29 @@ async def end_game(client, message):
     user_id = message.from_user.id
     is_auth = False
     
-    if message.chat.type == "private":
+    # OWNER check
+    if user_id == OWNER_ID:
+        is_auth = True
+    # PRIVATE chat check
+    elif message.chat.type == "private":
         is_auth = True 
+    # GROUP Admin or Authorized User check
     else:
-        member = await client.get_chat_member(chat_id, user_id)
-        if member.status in ["creator", "administrator"] or user_id == OWNER_ID:
-            is_auth = True
+        try:
+            member = await client.get_chat_member(chat_id, user_id)
+            if member.status in ["creator", "administrator"]:
+                is_auth = True
+            elif await is_user_auth(chat_id, user_id):
+                is_auth = True
+        except:
+            pass
             
     if is_auth:
         word = active_games[chat_id]["word"]
         del active_games[chat_id]
         await message.reply_text(f"🛑 **ɢᴀᴍᴇ ᴇɴᴅᴇᴅ!**\nᴛʜᴇ ᴡᴏʀᴅ ᴡᴀs: **{word}**")
     else:
-        await message.reply_text("❌ ᴏɴʟʏ ᴀᴅᴍɪɴs ᴄᴀɴ ᴇɴᴅ ᴛʜᴇ ɢᴀᴍᴇ ɪɴ ɢʀᴏᴜᴘs.")
+        await message.reply_text("❌ ᴏɴʟʏ ᴀᴅᴍɪɴs ᴏʀ ᴀᴜᴛʜᴏʀɪᴢᴇᴅ ᴜsᴇʀs ᴄᴀɴ ᴇɴᴅ ᴛʜᴇ ɢᴀᴍᴇ.")
 
 @Client.on_message(filters.text & (filters.group | filters.private) & ~filters.command(["start", "help", "new", "end", "leaderboard", "score", "daily", "pausedaily", "seekauth", "setgametopic", "unsetgametopic"]))
 async def handle_guess(client, message):
@@ -124,15 +136,14 @@ async def handle_guess(client, message):
     if guess in game["used_words"]:
         return await message.reply_text("ᴛʜɪs ɪs ᴀʟʀᴇᴀᴅʏ ɢᴜᴇssᴇᴅ ʙʏ sᴏᴍᴇᴏɴᴇ.")
     
-    if not is_valid_word(guess):
-        return await message.reply_text(f"**{guess.lower()}** is not a valid word.")
+    if not is_valid_word(guess, target):
+        return await message.reply_text(f"**{guess.lower()}** ɪs ɴᴏᴛ ᴀ ᴠᴀʟɪᴅ ᴡᴏʀᴅ.")
     
     game["used_words"].add(guess)
     
     if guess == target:
         game["status"] = "won"
         pts = max(5, 20 - game["attempts"])
-        # Updated save_score with chat_id
         await save_score(message.from_user.id, chat_id, pts)
         
         reactions = ["🎉", "🏆", "🔥", "⚡️", "🤩"]
@@ -172,15 +183,29 @@ sᴛᴀʀᴛ ᴡɪᴛʜ /new
     else:
         history = "\n".join(game["guesses"])
         hint_msg = ""
-        if game["max_attempts"] == 30 and game["attempts"] >= 27:
-            _, meaning, _ = get_word_definition(target)
-            hint_msg = f"\n\n💡 **ʜɪɴᴛ:** {meaning[:50]}..." 
+        # Improved Hint Logic: Step-by-step reveal
+        if game["max_attempts"] == 30:
+            if game["attempts"] == 20:
+                hint_msg = f"\n\n💡 **ʜɪɴᴛ (ғɪʀsᴛ ʟᴇᴛᴛᴇʀ):** It starts with '{target[0]}'"
+            elif game["attempts"] == 25:
+                hint_msg = f"\n\n💡 **ʜɪɴᴛ (ʟᴀsᴛ ʟᴇᴛᴛᴇʀ):** It ends with '{target[-1]}'"
+            elif game["attempts"] >= 27:
+                _, meaning, _ = get_word_definition(target)
+                hint_msg = f"\n\n💡 **ᴍᴇᴀɴɪɴɢ ʜɪɴᴛ:** {meaning[:60]}..." 
 
         await message.reply_text(f"{history}{hint_msg}", quote=True)
 
 @Client.on_message(filters.command("daily") & filters.private)
 async def daily_game(client, message):
+    user_id = message.from_user.id
     today = datetime.date.today().strftime("%Y-%m-%d")
+    
+    # Check if user already played today in DB or state
+    # Using scores collection to track daily play
+    already_played = await scores.find_one({"user_id": user_id, "type": f"daily_played_{today}"})
+    if already_played:
+        return await message.reply_text("🔒 **ʏᴏᴜ ʜᴀᴠᴇ ᴀʟʀᴇᴀᴅʏ ᴘʟᴀʏᴇᴅ ᴛᴏᴅᴀʏ's ᴡᴏʀᴅ!**\nᴄᴏᴍᴇ ʙᴀᴄᴋ ᴛᴏᴍᴏʀʀᴏᴡ.")
+
     random.seed(today)
     word = get_unlimited_word()
     random.seed()
@@ -197,4 +222,10 @@ async def daily_game(client, message):
         "status": "playing",
         "is_daily": True
     }
-    await message.reply_text("🎯 **ᴡᴏʀᴅsᴇᴇᴋ ᴏғ ᴛʜᴇ ᴅᴀʏ sᴛᴀʀᴛᴇᴅ!**\nɢᴜᴇss ᴛʜᴇ 𝟻-ʟᴇᴛᴛᴇʀ ᴡᴏʀᴅ. ʏᴏᴜ ʜᴀᴠᴇ 𝟼 ᴀᴛᴛᴇᴍᴘᴛs.")
+    # Mark as played for today
+    await scores.update_one(
+        {"user_id": user_id, "type": f"daily_played_{today}"},
+        {"$set": {"played": True, "createdAt": datetime.datetime.now()}},
+        upsert=True
+    )
+    await message.reply_text("🎯 **ᴡᴏʀᴅsᴇᴇᴋ ᴏғ ᴛʜᴇ ᴅᴀʏ sᴛᴀʀᴛᴇᴅ!**\nɢᴜᴇss ᴛʜᴇ ᴜɴɪǫᴜᴇ 𝟻-ʟᴇᴛᴛᴇʀ ᴡᴏʀᴅ. ʏᴏᴜ ʜᴀᴠᴇ 𝟼 ᴀᴛᴛᴇᴍᴘᴛs.")
