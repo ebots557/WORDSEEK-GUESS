@@ -5,7 +5,7 @@ import datetime
 import os
 from pyrogram import Client, filters
 from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton
-from database import save_score
+from database import save_score, scores # scores import kiya cleanup ke liye
 
 # Game state storage
 active_games = {} 
@@ -22,24 +22,22 @@ def get_unlimited_word():
     """Unlimited random 5-letter word fetch karne ke liye logic"""
     try:
         response = requests.get(WORDS_API, timeout=5).json()
-        # Sirf wahi words filter karna jo 5 letter ke hain aur alphabetic hain
         word_list = [w['word'].upper() for w in response if len(w['word']) == 5 and w['word'].isalpha()]
         return random.choice(word_list)
     except Exception as e:
-        # Fallback words agar API down ho jaye taaki game crash na ho
         print(f"Error fetching words: {e}")
         return random.choice(["GLINT", "POWER", "SIGHT", "GUEST", "VOCAL", "GIANT", "SHARP", "LIGHT", "CLEAN", "BRAIN"]).upper()
 
 def is_valid_word(word):
-    """Check if the word exists in dictionary (Screenshot 6 logic)"""
+    """Check if the word exists in dictionary"""
     try:
         response = requests.get(f"{DICT_API}{word.lower()}", timeout=3)
         return response.status_code == 200
     except:
-        return True # Safety check: agar API down ho to game rukne na de
+        return True 
 
 def get_word_definition(word):
-    """Word ka meaning aur pronunciation (Screenshot 5 logic)"""
+    """Word ka meaning aur pronunciation"""
     try:
         response = requests.get(f"{DICT_API}{word.lower()}", timeout=5).json()
         if isinstance(response, list):
@@ -65,7 +63,7 @@ def get_colored_boxes(guess, target):
             result += "🟨"
         else:
             result += "🟥"
-        result += " " # Ye gap box ko mix hone se bachayega
+        result += " " 
     return result.strip()
 
 @Client.on_message(filters.command("new") & (filters.group | filters.private))
@@ -74,16 +72,13 @@ async def start_new_game(client, message):
     if chat_id in active_games:
         return await message.reply_text("ᴀ ɢᴀᴍᴇ ɪs ᴀʟʀᴇᴀᴅʏ ʀᴜɴɴɪɴɢ! ᴇɴᴅ ɪᴛ ᴡɪᴛʜ /end ғɪʀsᴛ.")
     
-    # Unlimited words logic call
     word = get_unlimited_word()
-    
-    # Attempts decide: Group me 30, Private me 6
     max_att = 30 if message.chat.type != "private" else 6
     
     active_games[chat_id] = {
         "word": word,
         "guesses": [],
-        "used_words": set(), # Duplicate word tracking
+        "used_words": set(), 
         "attempts": 0,
         "max_attempts": max_att,
         "status": "playing"
@@ -100,9 +95,8 @@ async def end_game(client, message):
     is_auth = False
     
     if message.chat.type == "private":
-        is_auth = True # DM me koi bhi end kar sake
+        is_auth = True 
     else:
-        # Group me Admin, Creator ya Owner
         member = await client.get_chat_member(chat_id, user_id)
         if member.status in ["creator", "administrator"] or user_id == OWNER_ID:
             is_auth = True
@@ -121,14 +115,12 @@ async def handle_guess(client, message):
         return
 
     guess = message.text.upper().strip()
-    
     if len(guess) != 5 or not guess.isalpha():
         return 
     
     game = active_games[chat_id]
     target = game["word"]
 
-    # Already guessed check
     if guess in game["used_words"]:
         return await message.reply_text("ᴛʜɪs ɪs ᴀʟʀᴇᴀᴅʏ ɢᴜᴇssᴇᴅ ʙʏ sᴏᴍᴇᴏɴᴇ.")
     
@@ -140,14 +132,13 @@ async def handle_guess(client, message):
     if guess == target:
         game["status"] = "won"
         pts = max(5, 20 - game["attempts"])
-        # Global points add (DM logic included)
-        await save_score(message.from_user.id, pts)
+        # Updated save_score with chat_id
+        await save_score(message.from_user.id, chat_id, pts)
         
-        # Reaction logic fixed
         reactions = ["🎉", "🏆", "🔥", "⚡️", "🤩"]
         try:
             await client.send_reaction(chat_id, message.id, random.choice(reactions))
-        except Exception:
+        except:
             pass 
             
         phonetic, meaning, example = get_word_definition(target)
@@ -180,21 +171,17 @@ sᴛᴀʀᴛ ᴡɪᴛʜ /new
         del active_games[chat_id]
     else:
         history = "\n".join(game["guesses"])
-        
-        # 27 attempts ke baad Hint logic (Group only)
         hint_msg = ""
         if game["max_attempts"] == 30 and game["attempts"] >= 27:
             _, meaning, _ = get_word_definition(target)
-            hint_msg = f"\n\n💡 **ʜɪɴᴛ:** {meaning[:50]}..." # Meaning se ishara milega
+            hint_msg = f"\n\n💡 **ʜɪɴᴛ:** {meaning[:50]}..." 
 
-        # Attempt count spam hataya, sirf history bhejega
         await message.reply_text(f"{history}{hint_msg}", quote=True)
 
 @Client.on_message(filters.command("daily") & filters.private)
 async def daily_game(client, message):
     today = datetime.date.today().strftime("%Y-%m-%d")
     random.seed(today)
-    
     word = get_unlimited_word()
     random.seed()
 
@@ -210,5 +197,4 @@ async def daily_game(client, message):
         "status": "playing",
         "is_daily": True
     }
-    
-    await message.reply_text("🎯 **ᴡᴏʀᴅsᴇᴇᴋ ᴏғ ᴛʜᴇ ᴅᴀʏ sᴛᴀʀᴛᴇᴅ!**\nɢᴜᴇss ᴛʜᴇ 𝟻-ʟᴇᴛᴛᴇʀ ᴡᴏʀᴅ. ʏᴏᴜ ʜᴀᴠᴇ 𝟼 ᴀᴛᴛᴇᴍᴘᴛs. ɢᴏᴏᴅ ʟᴜᴄᴋ!")
+    await message.reply_text("🎯 **ᴡᴏʀᴅsᴇᴇᴋ ᴏғ ᴛʜᴇ ᴅᴀʏ sᴛᴀʀᴛᴇᴅ!**\nɢᴜᴇss ᴛʜᴇ 𝟻-ʟᴇᴛᴛᴇʀ ᴡᴏʀᴅ. ʏᴏᴜ ʜᴀᴠᴇ 𝟼 ᴀᴛᴛᴇᴍᴘᴛs.")
