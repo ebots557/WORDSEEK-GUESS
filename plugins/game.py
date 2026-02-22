@@ -190,18 +190,7 @@ async def handle_guess(client, message):
         pts = max(5, 20 - game["attempts"])
         await save_score(message.from_user.id, chat_id, pts)
         
-        # Super Stable Dynamic Reaction Logic
-        emojis = ["🎉", "💯", "👀", "❤️", "⚡", "🔥", "🦄", "🕊️", "🏆", "❤️‍🔥", "🍓", "🤗", "🤝", "🗿", "💘"]
-        random.shuffle(emojis)
-        for emo in emojis:
-            try:
-                await client.send_reaction(chat_id, message.id, emo)
-                break # Reaction successful, exit loop
-            except:
-                continue # Try next emoji if this one is not allowed
-            
         phonetic, meaning = get_word_definition(target)
-        
         win_text = f"""
 {message.from_user.mention}
 **{guess}**
@@ -214,10 +203,18 @@ sᴛᴀʀᴛ ᴡɪᴛʜ /new
 **{target.lower()}** {phonetic}
 **ᴍᴇᴀɴɪɴɢ:** {meaning}</blockquote>
 """
+        # Win msg pehle bhej rahe hain taaki delay na lage
         try:
             await client.send_message(chat_id, win_text, reply_to_message_id=message.id)
         except:
-            await message.reply_text(win_text) # Safe fallback
+            await message.reply_text(win_text)
+
+        # Reaction background mein handle hoga
+        emojis = ["🎉", "💯", "👀", "❤️", "⚡", "🔥", "🦄", "🕊️", "🏆", "❤️‍🔥", "🍓", "🤗", "🤝", "🗿", "💘"]
+        try:
+            await client.send_reaction(chat_id, message.id, random.choice(emojis))
+        except:
+            pass
 
         del active_games[chat_id]
         return
