@@ -17,6 +17,7 @@ async def help_cmd(client, message):
 • `/seekauth @username` – ᴀᴜᴛʜᴏʀɪᴢᴇ ᴀ ᴜsᴇʀ
 • `/seekauth remove @username` – ʀᴇᴍᴏᴠᴇ ᴀᴜᴛʜᴏʀɪᴢᴀᴛɪᴏɴ
 • `/seekauth list` – ʟɪsᴛ ᴀʟʟ ᴀᴜᴛʜᴏʀɪᴢᴇᴅ ᴜsᴇʀs
+• `/rmallauth` – ʀᴇᴍᴏᴠᴇ ᴀʟʟ ᴀᴜᴛʜᴏʀɪᴢᴇᴅ ᴜsᴇʀs (ɢʀᴏᴜᴘ cleanup)
 
 ʏᴏᴜ ᴄᴀɴ ᴀʟsᴏ ᴜsᴇ ᴀ ᴜsᴇʀ ɪᴅ ᴏʀ ʀᴇᴘʟʏ ᴛᴏ ᴀ ᴍᴇssᴀɢᴇ ɪɴsᴛᴇᴀᴅ ᴏғ `@username`.
 
@@ -48,9 +49,9 @@ async def how_to_play(client, cb):
 1. sᴛᴀʀᴛ ᴀ ɢᴀᴍᴇ ᴜsɪɴɢ /new ᴄᴏᴍᴍᴀɴᴅ
 2. ɢᴜᴇss ᴀ ʀᴀɴᴅᴏᴍ 5-ʟᴇᴛᴛᴇʀ ᴡᴏʀᴅ
 3. ᴀғᴛᴇʀ ᴇᴀᴄʜ ɢᴜᴇss, ʏᴏᴜ'ʟʟ ɢᴇᴛ ᴄᴏʟᴏʀ ʜɪɴᴛs:
-   🟩 ᴄᴏʀʀᴇᴄᴛ ʟᴇᴛᴛᴇʀ ɪɴ ᴛʜᴇ ʀɪɢʜᴛ sᴘᴏᴛ
-   🟨 ᴄᴏʀʀᴇᴄᴛ ʟᴇᴛᴛᴇʀ ɪɴ ᴛʜᴇ ᴡʀᴏɴɢ sᴘᴏᴛ
-   🟥 ʟᴇᴛᴛᴇʀ ɴᴏᴛ ɪɴ ᴛʜᴇ ᴡᴏʀᴅ
+   🟩 ᴄᴏʀʀᴇᴄᴛ ʟᴇᴛᴛᴇʀ ɪɴ ᴛʜᴇ ʀɪɢʜᴛ sᴘᴏᴛ
+   🟨 ᴄᴏʀʀᴇᴄᴛ ʟᴇᴛᴛᴇʀ ɪɴ ᴛʜᴇ ᴡʀᴏɴɢ sᴘᴏᴛ
+   🟥 ʟᴇᴛᴛᴇʀ ɴᴏᴛ ɪɴ ᴛʜᴇ ᴡᴏʀᴅ
 4. ғɪʀsᴛ ᴘᴇʀsᴏɴ ᴛᴏ ɢᴜᴇss ᴄᴏʀʀᴇᴄᴛʟʏ ᴡɪɴs!
 5. ᴍᴀxɪᴍᴜᴍ 30 ɢᴜᴇssᴇs ᴘᴇʀ ɢᴀᴍᴇ
 
@@ -65,7 +66,6 @@ async def how_to_play(client, cb):
 
 @Client.on_callback_query(filters.regex("help_menu"))
 async def help_menu_callback(client, cb):
-    # Wapas wahi main help screen
     text = """
 ▶ **ɢʀᴏᴜᴘ sᴇᴛᴛɪɴɢs (ᴀᴅᴍɪɴ ᴏɴʟʏ)**
 
@@ -75,7 +75,8 @@ async def help_menu_callback(client, cb):
 **ᴜsᴀɢᴇ:**
 • `/seekauth @username` – ᴀᴜᴛʜᴏʀɪᴢᴇ ᴀ ᴜsᴇʀ
 • `/seekauth remove @username` – ʀᴇᴍᴏᴠᴇ ᴀᴜᴛʜᴏʀɪᴢᴀᴛɪᴏɴ
-• `/rmallauth` – ʀᴇᴍᴏᴠᴇ ᴀʟʟ ᴀᴜᴛʜᴏʀɪᴢᴇᴅ ᴜsᴇʀs
+• `/seekauth list` – ʟɪsᴛ ᴀʟʟ ᴀᴜᴛʜᴏʀɪᴢᴇᴅ ᴜsᴇʀs
+• `/rmallauth` – ʀᴇᴍᴏᴠᴇ ᴀʟʟ ᴀᴜᴛʜᴏʀɪᴢᴇᴅ ᴜsᴇʀs (ɢʀᴏᴜᴘ cleanup)
 
 ʏᴏᴜ ᴄᴀɴ ᴀʟsᴏ ᴜsᴇ ᴀ ᴜsᴇʀ ɪᴅ ᴏʀ ʀᴇᴘʟʏ ᴛᴏ ᴀ ᴍᴇssᴀɢᴇ ɪɴsᴛᴇᴀᴅ ᴏғ `@username`.
 
