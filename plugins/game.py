@@ -55,27 +55,28 @@ def get_word_definition(word):
     return f"/{word.lower()}/", "ᴅᴇғɪɴɪᴛɪᴏɴ ɴᴏᴛ ғᴏᴜɴᴅ.", "ɴ/ᴀ"
 
 def get_colored_boxes(guess, target):
-    """Wordle Algorithm: Handles duplicate letters and adds spacing"""
+    """Wordle Algorithm: Handles duplicate letters and adds wide spacing like the image"""
     guess = guess[:5].upper()
     target = target.upper()
     result = ["🟥"] * 5
     target_list = list(target)
     guess_list = list(guess)
 
-    # First pass: Find Green (Correct position)
+    # First pass: Find Green
     for i in range(5):
         if guess_list[i] == target_list[i]:
             result[i] = "🟩"
-            target_list[i] = None # Mark as used
+            target_list[i] = None
             guess_list[i] = None
 
-    # Second pass: Find Yellow (Wrong position)
+    # Second pass: Find Yellow
     for i in range(5):
         if guess_list[i] is not None and guess_list[i] in target_list:
             result[i] = "🟨"
-            target_list[target_list.index(guess_list[i])] = None # Mark as used
+            target_list[target_list.index(guess_list[i])] = None
             
-    return "  ".join(result) # Added double space gap between boxes
+    # Using Unicode Em Space for perfect gap like the screenshot
+    return "\u2001".join(result)
 
 @Client.on_message(filters.command("new") & (filters.group | filters.private))
 async def start_new_game(client, message):
@@ -105,12 +106,14 @@ async def end_game(client, message):
     user_id = message.from_user.id
     is_auth = False
     
+    # OWNER check
     if user_id == OWNER_ID:
         is_auth = True
-    elif message.chat.type == "private":
+    # PRIVATE chat check (Fixed logic)
+    elif message.chat.type.name == "PRIVATE":
         is_auth = True 
+    # GROUP Admin check
     else:
-        # Improved Admin Check
         try:
             member = await client.get_chat_member(chat_id, user_id)
             if member.status.value in ["creator", "administrator"]:
@@ -118,13 +121,15 @@ async def end_game(client, message):
             elif await is_user_auth(chat_id, user_id):
                 is_auth = True
         except Exception:
-            # Fallback for some clients
             is_auth = False
             
     if is_auth:
         word = active_games[chat_id]["word"]
+        phonetic, meaning, example = get_word_definition(word)
         del active_games[chat_id]
-        await message.reply_text(f"🛑 **ɢᴀᴍᴇ ᴇɴᴅᴇᴅ!**\nᴛʜᴇ ᴡᴏʀᴅ ᴡᴀs: **{word}**")
+        # End message in blockquote for premium feel
+        end_text = f"🛑 **ɢᴀᴍᴇ ᴇɴᴅᴇᴅ!**\n\n<blockquote>**ᴛʜᴇ ᴡᴏʀᴅ ᴡᴀs:** {word}\n**ᴍᴇᴀɴɪɴɢ:** {meaning}</blockquote>"
+        await message.reply_text(end_text)
     else:
         await message.reply_text("❌ ᴏɴʟʏ ᴀᴅᴍɪɴs ᴏʀ ᴀᴜᴛʜᴏʀɪᴢᴇᴅ ᴜsᴇʀs ᴄᴀɴ ᴇɴᴅ ᴛʜᴇ ɢᴀᴍᴇ.")
 
@@ -154,7 +159,7 @@ async def handle_guess(client, message):
         pts = max(5, 20 - game["attempts"])
         await save_score(message.from_user.id, chat_id, pts)
         
-        # Fixed Reactions: Using common emojis that bots can send
+        # Fixed Reaction Logic for better compatibility
         try:
             await client.send_reaction(chat_id, message.id, "🎉")
         except Exception:
@@ -166,16 +171,14 @@ async def handle_guess(client, message):
 {message.from_user.mention}
 **{guess}**
 
-ᴄᴏɴɢʀᴀᴛs! ʏᴏᴜ ɢᴜᴇssᴇᴅ ɪᴛ ᴄᴏʀʀᴇᴄᴛʟʏ.
+<blockquote>ᴄᴏɴɢʀᴀᴛs! ʏᴏᴜ ɢᴜᴇssᴇᴅ ɪᴛ ᴄᴏʀʀᴇᴄᴛʟʏ.
 ᴀᴅᴅᴇᴅ {pts} ᴛᴏ ᴛʜᴇ ʟᴇᴀᴅᴇʀʙᴏᴀʀᴅ.
 sᴛᴀʀᴛ ᴡɪᴛʜ /new
 
-<blockquote>
 **ᴄᴏʀʀᴇᴄᴛ ᴡᴏʀᴅ:** {target.lower()}
 **{target.lower()}** {phonetic}
 **ᴍᴇᴀɴɪɴɢ:** {meaning}
-**ᴇxᴀᴍᴘʟᴇ:** {example}
-</blockquote>
+**ᴇxᴀᴍᴘʟᴇ:** {example}</blockquote>
 """
         await message.reply_text(win_text)
         del active_games[chat_id]
@@ -183,7 +186,7 @@ sᴛᴀʀᴛ ᴡɪᴛʜ /new
 
     game["attempts"] += 1
     boxes = get_colored_boxes(guess, target)
-    game["guesses"].append(f"{boxes}  **{guess}**")
+    game["guesses"].append(f"{boxes} **{guess}**") # Used Em space here too
     
     if game["attempts"] >= game["max_attempts"]:
         await message.reply_text(f"❌ ɢᴀᴍᴇ ᴏᴠᴇʀ! ᴛʜᴇ ᴡᴏʀᴅ ᴡᴀs **{target}**")
