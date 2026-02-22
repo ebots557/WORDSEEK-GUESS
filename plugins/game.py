@@ -45,14 +45,12 @@ def get_word_definition(word):
             phonetic = response[0].get("phonetic", f"/{word.lower()}/")
             meanings = response[0].get("meanings", [])
             definition = "ᴅᴇғɪɴɪᴛɪᴏɴ ɴᴏᴛ ғᴏᴜɴᴅ."
-            example = "ɴᴏ ᴇxᴀᴍᴘʟᴇ ᴀᴠᴀɪʟᴀʙʟᴇ."
             if meanings:
                 definition = meanings[0]["definitions"][0].get("definition", definition)
-                example = meanings[0]["definitions"][0].get("example", example)
-            return phonetic, definition, example
+            return phonetic, definition
     except:
         pass
-    return f"/{word.lower()}/", "ᴅᴇғɪɴɪᴛɪᴏɴ ɴᴏᴛ ғᴏᴜɴᴅ.", "ɴ/ᴀ"
+    return f"/{word.lower()}/", "ᴅᴇғɪɴɪᴛɪᴏɴ ɴᴏᴛ ғᴏᴜɴᴅ."
 
 def get_colored_boxes(guess, target):
     """Wordle Algorithm: Half-space logic for perfect box alignment"""
@@ -127,10 +125,10 @@ async def end_game(client, message):
             
     if is_auth:
         word = active_games[chat_id]["word"]
-        phonetic, meaning, example = get_word_definition(word)
+        phonetic, meaning = get_word_definition(word)
         del active_games[chat_id]
         end_text = f"🛑 **ɢᴀᴍᴇ ᴇɴᴅᴇᴅ!**\n\n<blockquote>**ᴛʜᴇ ᴡᴏʀᴅ ᴡᴀs:** {word}\n**ᴍᴇᴀɴɪɴɢ:** {meaning}</blockquote>"
-        # Forced quote/reply for end game
+        # Forced quote for end message
         await client.send_message(chat_id, end_text, reply_to_message_id=message.id)
     else:
         await message.reply_text("❌ ᴏɴʟʏ ᴀᴅᴍɪɴs ᴏʀ ᴀᴜᴛʜᴏʀɪᴢᴇᴅ ᴜsᴇʀs ᴄᴀɴ ᴇɴᴅ ᴛʜᴇ ɢᴀᴍᴇ.", quote=True)
@@ -171,13 +169,13 @@ async def handle_guess(client, message):
         pts = max(5, 20 - game["attempts"])
         await save_score(message.from_user.id, chat_id, pts)
         
-        # Reaction logic
+        # Fixed Reaction Logic
         try:
-            await client.send_reaction(chat_id=chat_id, message_id=message.id, emoji="🎉")
+            await client.send_reaction(chat_id, message.id, "🎉")
         except Exception as e:
             print(f"Reaction Error: {e}")
             
-        phonetic, meaning, example = get_word_definition(target)
+        phonetic, meaning = get_word_definition(target)
         
         win_text = f"""
 {message.from_user.mention}
@@ -189,8 +187,7 @@ sᴛᴀʀᴛ ᴡɪᴛʜ /new
 
 **ᴄᴏʀʀᴇᴄᴛ ᴡᴏʀᴅ:** {target.lower()}
 **{target.lower()}** {phonetic}
-**ᴍᴇᴀɴɪɴɢ:** {meaning}
-**ᴇxᴀᴍᴘʟᴇ:** {example}</blockquote>
+**ᴍᴇᴀɴɪɴɢ:** {meaning}</blockquote>
 """
         # Forced quote for win message
         await client.send_message(
@@ -214,7 +211,7 @@ sᴛᴀʀᴛ ᴡɪᴛʜ /new
         hint_msg = ""
         
         if game.get("is_daily") or (game["max_attempts"] == 30 and game["attempts"] >= 20):
-            _, meaning, _ = get_word_definition(target)
+            _, meaning = get_word_definition(target)
             hint_msg = f"\n\n💡 **ʜɪɴᴛ:** {meaning[:100]}..."
 
         await message.reply_text(f"{history}{hint_msg}", quote=True)
