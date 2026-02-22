@@ -122,7 +122,7 @@ async def leaderboard_handler(client, cb: CallbackQuery):
         [
             InlineKeyboardButton("ᴜᴘᴅᴀᴛᴇs ↗️", url="https://t.me/fexionbots"),
             InlineKeyboardButton("🔄", callback_data=cb.data),
-            InlineKeyboardButton("ᴅɪsᴄᴜssɪᴏɴ ↗️", url="https://t.me/EvaraSupportChat")
+            InlineKeyboardButton("ᴡᴏʀᴅ ɢᴜᴇss ᴄʜᴀᴛ ↗️", url="https://t.me/WordguessnxChat")
         ]
     ]
     
