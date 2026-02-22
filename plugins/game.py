@@ -85,7 +85,7 @@ async def start_new_game(client, message):
         return await message.reply_text("ᴀ ɢᴀᴍᴇ ɪs ᴀʟʀᴇᴀᴅʏ ʀᴜɴɴɪɴɢ! ᴇɴᴅ ɪᴛ ᴡɪᴛʜ /end ғɪʀsᴛ.", quote=True)
     
     word = get_unlimited_word()
-    # Fixed: /new will always give 30 attempts now regardless of chat type
+    # /new always 30 attempts
     max_att = 30
     
     active_games[chat_id] = {
@@ -130,7 +130,8 @@ async def end_game(client, message):
         phonetic, meaning, example = get_word_definition(word)
         del active_games[chat_id]
         end_text = f"🛑 **ɢᴀᴍᴇ ᴇɴᴅᴇᴅ!**\n\n<blockquote>**ᴛʜᴇ ᴡᴏʀᴅ ᴡᴀs:** {word}\n**ᴍᴇᴀɴɪɴɢ:** {meaning}</blockquote>"
-        await message.reply_text(end_text, quote=True)
+        # Forced quote/reply for end game
+        await client.send_message(chat_id, end_text, reply_to_message_id=message.id)
     else:
         await message.reply_text("❌ ᴏɴʟʏ ᴀᴅᴍɪɴs ᴏʀ ᴀᴜᴛʜᴏʀɪᴢᴇᴅ ᴜsᴇʀs ᴄᴀɴ ᴇɴᴅ ᴛʜᴇ ɢᴀᴍᴇ.", quote=True)
 
@@ -170,11 +171,11 @@ async def handle_guess(client, message):
         pts = max(5, 20 - game["attempts"])
         await save_score(message.from_user.id, chat_id, pts)
         
-        # Correct reaction logic
+        # Reaction logic
         try:
             await client.send_reaction(chat_id=chat_id, message_id=message.id, emoji="🎉")
-        except:
-            pass 
+        except Exception as e:
+            print(f"Reaction Error: {e}")
             
         phonetic, meaning, example = get_word_definition(target)
         
@@ -191,7 +192,7 @@ sᴛᴀʀᴛ ᴡɪᴛʜ /new
 **ᴍᴇᴀɴɪɴɢ:** {meaning}
 **ᴇxᴀᴍᴘʟᴇ:** {example}</blockquote>
 """
-        # Proper quote/reply for win message
+        # Forced quote for win message
         await client.send_message(
             chat_id=chat_id,
             text=win_text,
@@ -205,7 +206,8 @@ sᴛᴀʀᴛ ᴡɪᴛʜ /new
     game["guesses"].append(f"{boxes}  **{guess}**") 
     
     if game["attempts"] >= game["max_attempts"]:
-        await message.reply_text(f"❌ ɢᴀᴍᴇ ᴏᴠᴇʀ! ᴛʜᴇ ᴡᴏʀᴅ ᴡᴀs **{target}**", quote=True)
+        # Forced quote for game over
+        await client.send_message(chat_id, f"❌ ɢᴀᴍᴇ ᴏᴠᴇʀ! ᴛʜᴇ ᴡᴏʀᴅ ᴡᴀs **{target}**", reply_to_message_id=message.id)
         del active_games[chat_id]
     else:
         history = "\n".join(game["guesses"])
