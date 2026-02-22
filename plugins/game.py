@@ -83,6 +83,7 @@ async def start_new_game(client, message):
     active_games[chat_id] = {
         "word": word,
         "guesses": [],
+        "used_words": set(), # Duplicate word tracking
         "attempts": 0,
         "max_attempts": max_att,
         "status": "playing"
@@ -95,15 +96,14 @@ async def end_game(client, message):
     if chat_id not in active_games:
         return await message.reply_text("ɴᴏ ᴀᴄᴛɪᴠᴇ ɢᴀᴍᴇ ᴛᴏ ᴇɴᴅ.")
 
-    # Permissions: Only Admin, Authorized User, or Owner
     user_id = message.from_user.id
     is_auth = False
     
     if message.chat.type == "private":
-        is_auth = True
+        is_auth = True # DM me koi bhi end kar sake
     else:
+        # Group me Admin, Creator ya Owner
         member = await client.get_chat_member(chat_id, user_id)
-        # Check if Admin or Owner
         if member.status in ["creator", "administrator"] or user_id == OWNER_ID:
             is_auth = True
             
@@ -112,7 +112,7 @@ async def end_game(client, message):
         del active_games[chat_id]
         await message.reply_text(f"🛑 **ɢᴀᴍᴇ ᴇɴᴅᴇᴅ!**\nᴛʜᴇ ᴡᴏʀᴅ ᴡᴀs: **{word}**")
     else:
-        await message.reply_text("❌ ᴏɴʟʏ ᴀᴅᴍɪɴs ᴏʀ ᴀᴜᴛʜᴏʀɪᴢᴇᴅ ᴜsᴇʀs ᴄᴀɴ ᴇɴᴅ ᴛʜᴇ ɢᴀᴍᴇ.")
+        await message.reply_text("❌ ᴏɴʟʏ ᴀᴅᴍɪɴs ᴄᴀɴ ᴇɴᴅ ᴛʜᴇ ɢᴀᴍᴇ ɪɴ ɢʀᴏᴜᴘs.")
 
 @Client.on_message(filters.text & (filters.group | filters.private) & ~filters.command(["start", "help", "new", "end", "leaderboard", "score", "daily", "pausedaily", "seekauth", "setgametopic", "unsetgametopic"]))
 async def handle_guess(client, message):
@@ -122,32 +122,36 @@ async def handle_guess(client, message):
 
     guess = message.text.upper().strip()
     
-    # length aur characters check
     if len(guess) != 5 or not guess.isalpha():
         return 
     
-    # Galt word validation (Screenshot 6 logic: invalid word accept nahi karega)
+    game = active_games[chat_id]
+    target = game["word"]
+
+    # Already guessed check
+    if guess in game["used_words"]:
+        return await message.reply_text("ᴛʜɪs ɪs ᴀʟʀᴇᴀᴅʏ ɢᴜᴇssᴇᴅ ʙʏ sᴏᴍᴇᴏɴᴇ.")
+    
     if not is_valid_word(guess):
         return await message.reply_text(f"**{guess.lower()}** is not a valid word.")
     
-    game = active_games[chat_id]
-    target = game["word"]
+    game["used_words"].add(guess)
     
     if guess == target:
         game["status"] = "won"
         pts = max(5, 20 - game["attempts"])
+        # Global points add (DM logic included)
         await save_score(message.from_user.id, pts)
         
-        # Winner Reactions Fix
+        # Reaction logic fixed
         reactions = ["🎉", "🏆", "🔥", "⚡️", "🤩"]
         try:
             await client.send_reaction(chat_id, message.id, random.choice(reactions))
-        except:
+        except Exception:
             pass 
             
         phonetic, meaning, example = get_word_definition(target)
         
-        # Exact text jaisa photo me hai
         win_text = f"""
 {message.from_user.mention}
 **{guess}**
@@ -167,7 +171,6 @@ sᴛᴀʀᴛ ᴡɪᴛʜ /new
         del active_games[chat_id]
         return
 
-    # Wrong guess logic (Attempts update aur grid show karna)
     game["attempts"] += 1
     boxes = get_colored_boxes(guess, target)
     game["guesses"].append(f"{boxes}  **{guess}**")
@@ -176,18 +179,24 @@ sᴛᴀʀᴛ ᴡɪᴛʜ /new
         await message.reply_text(f"❌ ɢᴀᴍᴇ ᴏᴠᴇʀ! ᴛʜᴇ ᴡᴏʀᴅ ᴡᴀs **{target}**")
         del active_games[chat_id]
     else:
-        # Premium Look: Har guess par poora grid bhejte hain bina bar bar reply kiye (optional: edit logic)
         history = "\n".join(game["guesses"])
-        await message.reply_text(f"{history}\n\n`{game['max_attempts'] - game['attempts']} attempts remaining`", quote=True)
+        
+        # 27 attempts ke baad Hint logic (Group only)
+        hint_msg = ""
+        if game["max_attempts"] == 30 and game["attempts"] >= 27:
+            _, meaning, _ = get_word_definition(target)
+            hint_msg = f"\n\n💡 **ʜɪɴᴛ:** {meaning[:50]}..." # Meaning se ishara milega
+
+        # Attempt count spam hataya, sirf history bhejega
+        await message.reply_text(f"{history}{hint_msg}", quote=True)
 
 @Client.on_message(filters.command("daily") & filters.private)
 async def daily_game(client, message):
-    # Daily logic: Date ke basis pe seed set karna taaki har user ko same word mile
     today = datetime.date.today().strftime("%Y-%m-%d")
     random.seed(today)
     
     word = get_unlimited_word()
-    random.seed() # Reset seed for other functions
+    random.seed()
 
     if message.chat.id in active_games:
         return await message.reply_text("ᴀ ɢᴀᴍᴇ ɪs ᴀʟʀᴇᴀᴅʏ ʀᴜɴɴɪɴɢ! /end ɪᴛ ғɪʀsᴛ.")
@@ -195,11 +204,11 @@ async def daily_game(client, message):
     active_games[message.chat.id] = {
         "word": word,
         "guesses": [],
+        "used_words": set(),
         "attempts": 0,
         "max_attempts": 6,
         "status": "playing",
         "is_daily": True
     }
     
-    # Screenshot 7 text logic
     await message.reply_text("🎯 **ᴡᴏʀᴅsᴇᴇᴋ ᴏғ ᴛʜᴇ ᴅᴀʏ sᴛᴀʀᴛᴇᴅ!**\nɢᴜᴇss ᴛʜᴇ 𝟻-ʟᴇᴛᴛᴇʀ ᴡᴏʀᴅ. ʏᴏᴜ ʜᴀᴠᴇ 𝟼 ᴀᴛᴛᴇᴍᴘᴛs. ɢᴏᴏᴅ ʟᴜᴄᴋ!")
