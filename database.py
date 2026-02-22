@@ -9,7 +9,7 @@ db = client["WordSeek"]
 users = db["users"]
 groups = db["groups"]
 scores = db["scores"] 
-authorized = db["authorized"]
+authorized = db["authorized_users"] # Synced with admin.py collection name
 
 async def init_db():
     # TTL Index: Automatically delete documents after 30 days to save space
@@ -57,5 +57,12 @@ async def get_stats():
     return u_count, g_count
 
 async def is_user_auth(chat_id, user_id):
-    res = await authorized.find_one({"chat_id": chat_id, "user_id": user_id})
+    # Updated to match the array-based structure in admin.py
+    res = await authorized.find_one({"_id": chat_id, "users": user_id})
     return True if res else False
+
+# --- Additional Helper for Cleanup (Leaderboard Sync) ---
+async def delete_user_data(user_id):
+    """Deletes all score data for a specific user (Used for cleanup)"""
+    await scores.delete_many({"user_id": user_id})
+    await users.delete_one({"_id": user_id})
