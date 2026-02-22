@@ -3,10 +3,9 @@ from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, CallbackQ
 from database import scores
 from datetime import datetime
 
-# --- DATABASE SAVING LOGIC (Isse save_score function me replace kar dena) ---
+# --- DATABASE SAVING LOGIC ---
 async def save_score_logic(user_id, chat_id, pts):
     now = datetime.now()
-    # Keys for different periods
     periods = {
         "daily": f"daily_{now.day}_{now.month}_{now.year}",
         "weekly": f"weekly_{now.isocalendar()[1]}_{now.year}",
@@ -29,8 +28,6 @@ async def save_score_logic(user_id, chat_id, pts):
             upsert=True
         )
 
-    # DATABASE CLEANUP: Purana data delete karne ke liye (Optional background task)
-    # Isse DB clean rehta hai aur sirf current period ka data bachta hai.
 # --------------------------------------------------------------------------
 
 @Client.on_message(filters.command("leaderboard"))
@@ -67,20 +64,24 @@ async def leaderboard_handler(client, cb: CallbackQuery):
     db_chat_id = "global" if scope == "global" else current_chat
     title = "ɢʟᴏʙᴀʟ" if scope == "global" else "ᴛʜɪs ᴄʜᴀᴛ"
 
-    # Database Fetch
+    # Database Fetch - Limited to Top 15
     top_players = scores.find({"type": query_type, "chat_id": db_chat_id}).sort("pts", -1).limit(15)
     
     lb_text = f"🏆 **{title} ʟᴇᴀᴅᴇʀʙᴏᴀʀᴅ** 🏆\n\n"
     
     rank = 1
     has_players = False
+    
     async for p in top_players:
-        has_players = True
         try:
+            # User mention logic
             user = await client.get_users(p["user_id"])
-            name = user.first_name
+            name = user.mention
+            has_players = True
         except:
-            name = "Unknown"
+            # Cleanup deleted accounts
+            await scores.delete_many({"user_id": p["user_id"]})
+            continue
             
         if rank == 1:
             lb_text += f"🥇 {name} - {p['pts']:,} ᴘᴛs\n"
@@ -98,7 +99,7 @@ async def leaderboard_handler(client, cb: CallbackQuery):
     if not has_players:
         lb_text += "ɴᴏ sᴄᴏʀᴇs ғᴏᴜɴᴅ ғᴏʀ ᴛʜɪs sᴇᴄᴛɪᴏɴ."
 
-    # Button Bracket Logic (Row 1 and Row 2-3 independent move karegi)
+    # Button Bracket Logic
     def get_scope_btn(txt, target):
         return f"« {txt} »" if scope == target else txt
 
