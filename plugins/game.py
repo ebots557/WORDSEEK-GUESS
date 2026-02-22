@@ -82,10 +82,11 @@ def get_colored_boxes(guess, target):
 async def start_new_game(client, message):
     chat_id = message.chat.id
     if chat_id in active_games:
-        return await message.reply_text("ᴀ ɢᴀᴍᴇ ɪs ᴀʟʀᴇᴀᴅʏ ʀᴜɴɴɪɴɢ! ᴇɴᴅ ɪᴛ ᴡɪᴛʜ /end ғɪʀsᴛ.")
+        return await message.reply_text("ᴀ ɢᴀᴍᴇ ɪs ᴀʟʀᴇᴀᴅʏ ʀᴜɴɴɪɴɢ! ᴇɴᴅ ɪᴛ ᴡɪᴛʜ /end ғɪʀsᴛ.", quote=True)
     
     word = get_unlimited_word()
-    max_att = 30 if message.chat.type != enums.ChatType.PRIVATE else 6
+    # Fixed: /new will always give 30 attempts now regardless of chat type
+    max_att = 30
     
     active_games[chat_id] = {
         "word": word,
@@ -96,17 +97,16 @@ async def start_new_game(client, message):
         "status": "playing",
         "is_daily": False
     }
-    await message.reply_text(f"🎯 **ᴡᴏʀᴅsᴇᴇᴋ sᴛᴀʀᴛᴇᴅ!**\nɢᴜᴇss ᴛʜᴇ 𝟻-ʟᴇᴛᴛᴇʀ ᴡᴏʀᴅ. ʏᴏᴜ ʜᴀᴠᴇ **{max_att}** ᴀᴛᴛᴇᴍᴘᴛs.")
+    await message.reply_text(f"🎯 **ᴡᴏʀᴅsᴇᴇᴋ sᴛᴀʀᴛᴇᴅ!**\nɢᴜᴇss ᴛʜᴇ 𝟻-ʟᴇᴛᴛᴇʀ ᴡᴏʀᴅ. ʏᴏᴜ ʜᴀᴠᴇ **{max_att}** ᴀᴛᴛᴇᴍᴘᴛs.", quote=True)
 
 @Client.on_message(filters.command("end"))
 async def end_game(client, message):
     chat_id = message.chat.id
     if chat_id not in active_games:
-        return await message.reply_text("ɴᴏ ᴀᴄᴛɪᴠᴇ ɢᴀᴍᴇ ᴛᴏ ᴇɴᴅ.")
+        return await message.reply_text("ɴᴏ ᴀᴄᴛɪᴠᴇ ɢᴀᴍᴇ ᴛᴏ ᴇɴᴅ.", quote=True)
     
-    # Logic: Daily game should not stop with /end
     if active_games[chat_id].get("is_daily"):
-        return await message.reply_text("ᴛʜɪs ɪs ᴀ ᴅᴀɪʟʏ ɢᴀᴍᴇ. ᴜsᴇ /pausedaily ᴛᴏ sᴛᴏᴘ ɪᴛ.")
+        return await message.reply_text("ᴛʜɪs ɪs ᴀ ᴅᴀɪʟʏ ɢᴀᴍᴇ. ᴜsᴇ /pausedaily ᴛᴏ sᴛᴏᴘ ɪᴛ.", quote=True)
 
     user_id = message.from_user.id
     is_auth = False
@@ -129,11 +129,10 @@ async def end_game(client, message):
         word = active_games[chat_id]["word"]
         phonetic, meaning, example = get_word_definition(word)
         del active_games[chat_id]
-        # End message in blockquote
         end_text = f"🛑 **ɢᴀᴍᴇ ᴇɴᴅᴇᴅ!**\n\n<blockquote>**ᴛʜᴇ ᴡᴏʀᴅ ᴡᴀs:** {word}\n**ᴍᴇᴀɴɪɴɢ:** {meaning}</blockquote>"
-        await message.reply_text(end_text)
+        await message.reply_text(end_text, quote=True)
     else:
-        await message.reply_text("❌ ᴏɴʟʏ ᴀᴅᴍɪɴs ᴏʀ ᴀᴜᴛʜᴏʀɪᴢᴇᴅ ᴜsᴇʀs ᴄᴀɴ ᴇɴᴅ ᴛʜᴇ ɢᴀᴍᴇ.")
+        await message.reply_text("❌ ᴏɴʟʏ ᴀᴅᴍɪɴs ᴏʀ ᴀᴜᴛʜᴏʀɪᴢᴇᴅ ᴜsᴇʀs ᴄᴀɴ ᴇɴᴅ ᴛʜᴇ ɢᴀᴍᴇ.", quote=True)
 
 @Client.on_message(filters.command("pausedaily") & filters.private)
 async def pause_daily(client, message):
@@ -141,9 +140,9 @@ async def pause_daily(client, message):
     if chat_id in active_games and active_games[chat_id].get("is_daily"):
         word = active_games[chat_id]["word"]
         del active_games[chat_id]
-        await message.reply_text(f"⏸ **ᴅᴀɪʟʏ ɢᴀᴍᴇ ᴘᴀᴜsᴇᴅ!**\nᴛʜᴇ ᴡᴏʀᴅ ᴡᴀs: **{word}**\nsᴛᴀʀᴛ ᴀ ɴᴇᴡ ɢᴀᴍᴇ ᴡɪᴛʜ /new")
+        await message.reply_text(f"⏸ **ᴅᴀɪʟʏ ɢᴀᴍᴇ ᴘᴀᴜsᴇᴅ!**\nᴛʜᴇ ᴡᴏʀᴅ ᴡᴀs: **{word}**\nsᴛᴀʀᴛ ᴀ ɴᴇᴡ ɢᴀᴍᴇ ᴡɪᴛʜ /new", quote=True)
     else:
-        await message.reply_text("ɴᴏ ᴀᴄᴛɪᴠᴇ ᴅᴀɪʟʏ ɢᴀᴍᴇ ᴛᴏ ᴘᴀᴜsᴇ.")
+        await message.reply_text("ɴᴏ ᴀᴄᴛɪᴠᴇ ᴅᴀɪʟʏ ɢᴀᴍᴇ ᴛᴏ ᴘᴀᴜsᴇ.", quote=True)
 
 @Client.on_message(filters.text & (filters.group | filters.private) & ~filters.command(["start", "help", "new", "end", "leaderboard", "score", "daily", "pausedaily", "seekauth", "setgametopic", "unsetgametopic"]))
 async def handle_guess(client, message):
@@ -159,10 +158,10 @@ async def handle_guess(client, message):
     target = game["word"]
 
     if guess in game["used_words"]:
-        return await message.reply_text("ᴛʜɪs ɪs ᴀʟʀᴇᴀᴅʏ ɢᴜᴇssᴇᴅ ʙʏ sᴏᴍᴇᴏɴᴇ.")
+        return await message.reply_text("ᴛʜɪs ɪs ᴀʟʀᴇᴀᴅʏ ɢᴜᴇssᴇᴅ ʙʏ sᴏᴍᴇᴏɴᴇ.", quote=True)
     
     if not is_valid_word(guess, target):
-        return await message.reply_text(f"**{guess.lower()}** ɪs ɴᴏᴛ ᴀ ᴠᴀʟɪᴅ ᴡᴏʀᴅ.")
+        return await message.reply_text(f"**{guess.lower()}** ɪs ɴᴏᴛ ᴀ ᴠᴀʟɪᴅ ᴡᴏʀᴅ.", quote=True)
     
     game["used_words"].add(guess)
     
@@ -171,9 +170,9 @@ async def handle_guess(client, message):
         pts = max(5, 20 - game["attempts"])
         await save_score(message.from_user.id, chat_id, pts)
         
-        # Fixed Reaction Logic as requested
+        # Correct reaction logic
         try:
-            await message.react("🎉")
+            await client.send_reaction(chat_id=chat_id, message_id=message.id, emoji="🎉")
         except:
             pass 
             
@@ -192,10 +191,10 @@ sᴛᴀʀᴛ ᴡɪᴛʜ /new
 **ᴍᴇᴀɴɪɴɢ:** {meaning}
 **ᴇxᴀᴍᴘʟᴇ:** {example}</blockquote>
 """
-        # send_message logic with reply_to_message_id
+        # Proper quote/reply for win message
         await client.send_message(
-            chat_id,
-            win_text,
+            chat_id=chat_id,
+            text=win_text,
             reply_to_message_id=message.id
         )
         del active_games[chat_id]
@@ -206,13 +205,12 @@ sᴛᴀʀᴛ ᴡɪᴛʜ /new
     game["guesses"].append(f"{boxes}  **{guess}**") 
     
     if game["attempts"] >= game["max_attempts"]:
-        await message.reply_text(f"❌ ɢᴀᴍᴇ ᴏᴠᴇʀ! ᴛʜᴇ ᴡᴏʀᴅ ᴡᴀs **{target}**")
+        await message.reply_text(f"❌ ɢᴀᴍᴇ ᴏᴠᴇʀ! ᴛʜᴇ ᴡᴏʀᴅ ᴡᴀs **{target}**", quote=True)
         del active_games[chat_id]
     else:
         history = "\n".join(game["guesses"])
         hint_msg = ""
         
-        # Hint logic: Daily mode mein hamesha hint, normal mein late stages pe
         if game.get("is_daily") or (game["max_attempts"] == 30 and game["attempts"] >= 20):
             _, meaning, _ = get_word_definition(target)
             hint_msg = f"\n\n💡 **ʜɪɴᴛ:** {meaning[:100]}..."
@@ -226,14 +224,14 @@ async def daily_game(client, message):
     
     already_played = await scores.find_one({"user_id": user_id, "type": f"daily_played_{today}"})
     if already_played:
-        return await message.reply_text("🔒 **ʏᴏᴜ ʜᴀᴠᴇ ᴀʟʀᴇᴀᴅʏ ᴘʟᴀʏᴇᴅ ᴛᴏᴅᴀʏ's ᴡᴏʀᴅ!**\nᴄᴏᴍᴇ ʙᴀᴄᴋ ᴛᴏᴍᴏʀʀᴏᴡ.")
+        return await message.reply_text("🔒 **ʏᴏᴜ ʜᴀᴠᴇ ᴀʟʀᴇᴀᴅʏ ᴘʟᴀʏᴇᴅ ᴛᴏᴅᴀʏ's ᴡᴏʀᴅ!**\nᴄᴏᴍᴇ ʙᴀᴄᴋ ᴛᴏᴍᴏʀʀᴏᴡ.", quote=True)
 
     random.seed(today)
     word = get_unlimited_word()
     random.seed()
 
     if message.chat.id in active_games:
-        return await message.reply_text("ᴀ ɢᴀᴍᴇ ɪs ᴀʟʀᴇᴀᴅʏ ʀᴜɴɴɪɴɢ! /end ɪᴛ ғɪʀsᴛ.")
+        return await message.reply_text("ᴀ ɢᴀᴍᴇ ɪs ᴀʟʀᴇᴀᴅʏ ʀᴜɴɴɪɴɢ! /end ɪᴛ ғɪʀsᴛ.", quote=True)
 
     active_games[message.chat.id] = {
         "word": word,
@@ -249,4 +247,4 @@ async def daily_game(client, message):
         {"$set": {"played": True, "createdAt": datetime.datetime.now()}},
         upsert=True
     )
-    await message.reply_text("🎯 **ᴡᴏʀᴅsᴇᴇᴋ ᴏғ ᴛʜᴇ ᴅᴀʏ sᴛᴀʀᴛᴇᴅ!**\nɢᴜᴇss ᴛʜᴇ ᴜɴɪǫᴜᴇ 𝟻-ʟᴇᴛᴛᴇʀ ᴡᴏʀᴅ. ʏᴏᴜ ʜᴀᴠᴇ 𝟼 ᴀᴛᴛᴇᴍᴘᴛs.")
+    await message.reply_text("🎯 **ᴡᴏʀᴅsᴇᴇᴋ ᴏғ ᴛʜᴇ ᴅᴀʏ sᴛᴀʀᴛᴇᴅ!**\nɢᴜᴇss ᴛʜᴇ ᴜɴɪǫᴜᴇ 𝟻-ʟᴇᴛᴛᴇʀ ᴡᴏʀᴅ. ʏᴏᴜ ʜᴀᴠᴇ 𝟼 ᴀᴛᴛᴇᴍᴘᴛs.", quote=True)
