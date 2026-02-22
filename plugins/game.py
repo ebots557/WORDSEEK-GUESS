@@ -6,6 +6,7 @@ import os
 import time
 from pyrogram import Client, filters, enums
 from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton
+from pyrogram.raw import functions, types # Import raw for forced reactions
 from database import save_score, scores, is_user_auth # is_user_auth import kiya admin check ke liye
 
 # Game state storage
@@ -203,25 +204,25 @@ sᴛᴀʀᴛ ᴡɪᴛʜ /new
 **{target.lower()}** {phonetic}
 **ᴍᴇᴀɴɪɴɢ:** {meaning}</blockquote>
 """
-        # Win msg bhej rahe hain
+        # Win msg pehle bhej rahe hain
         try:
             await client.send_message(chat_id, win_text, reply_to_message_id=message.id)
         except:
             await message.reply_text(win_text)
 
-        # REACTION LOGIC: Multiple methods to ensure it works
-        emojis = ["🎉", "💯", "🔥", "🏆", "⚡", "❤️‍🔥", "❤️"]
-        selected_emoji = random.choice(emojis)
-        
+        # REACTION LOGIC (Using Raw functions for maximum compatibility)
+        emojis = ["🎉", "💯", "👀", "❤️", "⚡", "🔥", "🦄", "🕊️", "🏆", "❤️‍🔥", "🍓", "🤗", "🤝", "🗿", "💘"]
         try:
-            # Primary Method (Pyrofork Optimized)
-            await client.send_reaction(chat_id, message.id, selected_emoji)
-        except Exception as e:
-            # Fallback if first one fails
-            try:
-                await client.send_reaction(chat_id, message.id, "🎉")
-            except:
-                print(f"Reaction failed: {e}")
+            peer = await client.resolve_peer(chat_id)
+            await client.invoke(
+                functions.messages.SendReaction(
+                    peer=peer,
+                    msg_id=message.id,
+                    reaction=[types.ReactionEmoji(emoticon=random.choice(emojis))]
+                )
+            )
+        except Exception:
+            pass
 
         del active_games[chat_id]
         return
