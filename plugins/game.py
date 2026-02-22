@@ -203,18 +203,25 @@ sᴛᴀʀᴛ ᴡɪᴛʜ /new
 **{target.lower()}** {phonetic}
 **ᴍᴇᴀɴɪɴɢ:** {meaning}</blockquote>
 """
-        # Win msg pehle bhej rahe hain taaki delay na lage
+        # Win msg bhej rahe hain
         try:
             await client.send_message(chat_id, win_text, reply_to_message_id=message.id)
         except:
             await message.reply_text(win_text)
 
-        # Reaction background mein handle hoga
-        emojis = ["🎉", "💯", "👀", "❤️", "⚡", "🔥", "🦄", "🕊️", "🏆", "❤️‍🔥", "🍓", "🤗", "🤝", "🗿", "💘"]
+        # REACTION LOGIC: Multiple methods to ensure it works
+        emojis = ["🎉", "💯", "🔥", "🏆", "⚡", "❤️‍🔥", "❤️"]
+        selected_emoji = random.choice(emojis)
+        
         try:
-            await client.send_reaction(chat_id, message.id, random.choice(emojis))
-        except:
-            pass
+            # Primary Method (Pyrofork Optimized)
+            await client.send_reaction(chat_id, message.id, selected_emoji)
+        except Exception as e:
+            # Fallback if first one fails
+            try:
+                await client.send_reaction(chat_id, message.id, "🎉")
+            except:
+                print(f"Reaction failed: {e}")
 
         del active_games[chat_id]
         return
