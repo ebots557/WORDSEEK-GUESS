@@ -3,9 +3,11 @@ from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, CallbackQ
 from database import scores
 from datetime import datetime
 
-# --- DATABASE SAVING LOGIC ---
+# --- DATABASE SAVING LOGIC WITH AUTO-CLEAN ---
 async def save_score_logic(user_id, chat_id, pts):
     now = datetime.now()
+    
+    # Current keys
     periods = {
         "daily": f"daily_{now.day}_{now.month}_{now.year}",
         "weekly": f"weekly_{now.isocalendar()[1]}_{now.year}",
@@ -14,6 +16,17 @@ async def save_score_logic(user_id, chat_id, pts):
         "all_time": "all_time"
     }
     
+    # Logic to delete OLD data (Cleaning)
+    # Hum sirf current keys ko chhod kar baaki sab delete kar denge 
+    # except 'all_time' type.
+    for p_type, p_key in periods.items():
+        if p_type != "all_time":
+            # Purana data delete karo jo current key se match nahi karta
+            await scores.delete_many({
+                "type": {"$regex": f"^{p_type}_"}, 
+                "type": {"$ne": p_key}
+            })
+
     for p_type, p_key in periods.items():
         # Global Update
         await scores.update_one(
