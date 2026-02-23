@@ -1,9 +1,10 @@
-from pyrogram import Client, filters
-from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 import os
+from pyrogram import Client, filters, enums
+from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton
+from database import scores # Database se scores fetch karne ke liye
 
 # Owner ID environmental variables se uthayega
-OWNER_ID = int(os.environ.get("OWNER_ID", "0"))
+OWNER_ID = int(os.environ.get("OWNER_ID", "7589623332"))
 
 @Client.on_message(filters.command("help"))
 async def help_cmd(client, message):
@@ -36,7 +37,7 @@ async def help_cmd(client, message):
             InlineKeyboardButton("ʟᴇᴀᴅᴇʀʙᴏᴀʀᴅ & sᴄᴏʀᴇs", callback_data="lb_scores")
         ],
         [
-            InlineKeyboardButton("ᴏᴡɴᴇʀ", url=f"tg://user?id={OWNER_ID}")
+            InlineKeyboardButton("ᴏᴡɴᴇʀ", url="tg://user?id=7589623332")
         ]
     ]
     await message.reply_text(text, reply_markup=InlineKeyboardMarkup(buttons))
@@ -61,6 +62,22 @@ async def how_to_play(client, cb):
 • /help - sʜᴏᴡ ᴛʜɪs ʜᴇʟᴘ ᴍᴇɴᴜ
 • /daily - ᴘʟᴀʏ ᴅᴀɪʟʏ ᴡᴏʀᴅsᴇᴇᴋ (ᴘʀɪᴠᴀᴛᴇ ᴄʜᴀᴛ ᴏɴʟʏ)
 • /pausedaily - ᴘᴀᴜsᴇ ᴅᴀɪʟʏ ᴍᴏᴅᴇ ᴀɴᴅ ɢᴏ ʙᴀᴄᴋ ᴛᴏ ɴᴏʀᴍᴀʟ ɢᴀᴍᴇs
+• /score - ᴄʜᴇᴄᴋ ʏᴏᴜʀ ᴏʀ ᴏᴛʜᴇʀs ᴘᴏɪɴᴛs
+"""
+    await cb.edit_message_text(text, reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("« ʙᴀᴄᴋ", callback_data="help_menu")]]))
+
+@Client.on_callback_query(filters.regex("lb_scores"))
+async def lb_scores_callback(client, cb):
+    text = """
+🏆 **ʟᴇᴀᴅᴇʀʙᴏᴀʀᴅ & sᴄᴏʀᴇs**
+
+ᴄʜᴇᴄᴋ ᴡʜᴏ ɪs ʀᴜʟɪɴɢ ᴛʜᴇ ᴡᴏʀᴅsᴇᴇᴋ ᴡᴏʀʟᴅ!
+
+• ᴜsᴇ /leaderboard ɪɴ ᴛʜᴇ ɢʀᴏᴜᴘ ᴛᴏ sᴇᴇ ᴛᴏᴘ ᴘʟᴀʏᴇʀs.
+• ᴜsᴇ /score ᴛᴏ ᴄʜᴇᴄᴋ ʏᴏᴜʀ ᴏᴡɴ ᴘᴏɪɴᴛs.
+• ʏᴏᴜ ᴄᴀɴ ᴀʟsᴏ ʀᴇᴘʟʏ ᴛᴏ ᴀ ᴜsᴇʀ ᴡɪᴛʜ /score ᴛᴏ sᴇᴇ ᴛʜᴇɪʀ ʀᴀɴᴋ.
+
+ᴘᴏɪɴᴛs ᴀʀᴇ ᴀᴡᴀʀᴅᴇᴅ ʙᴀsᴇᴅ ᴏɴ ʜᴏᴡ ғᴀsᴛ ʏᴏᴜ ɢᴜᴇss ᴛʜᴇ ᴡᴏʀᴅ!
 """
     await cb.edit_message_text(text, reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("« ʙᴀᴄᴋ", callback_data="help_menu")]]))
 
@@ -95,7 +112,28 @@ async def help_menu_callback(client, cb):
             InlineKeyboardButton("ʟᴇᴀᴅᴇʀʙᴏᴀʀᴅ & sᴄᴏʀᴇs", callback_data="lb_scores")
         ],
         [
-            InlineKeyboardButton("ᴏᴡɴᴇʀ", url=f"tg://user?id={OWNER_ID}")
+            InlineKeyboardButton("ᴏᴡɴᴇʀ", url="tg://user?id=7589623332")
         ]
     ]
     await cb.edit_message_text(text, reply_markup=InlineKeyboardMarkup(buttons))
+
+@Client.on_message(filters.command("score"))
+async def get_score(client, message):
+    if message.reply_to_message:
+        user_id = message.reply_to_message.from_user.id
+        user_name = message.reply_to_message.from_user.first_name
+    elif len(message.command) > 1:
+        try:
+            user_id = int(message.command[1])
+            user = await client.get_users(user_id)
+            user_name = user.first_name
+        except:
+            return await message.reply_text("❌ **ɪɴᴠᴀʟɪᴅ ᴜsᴇʀ ɪᴅ.**")
+    else:
+        user_id = message.from_user.id
+        user_name = message.from_user.first_name
+
+    data = await scores.find_one({"user_id": user_id, "chat_id": message.chat.id})
+    score_val = data.get("score", 0) if data else 0
+    
+    await message.reply_text(f"👤 **ᴜsᴇʀ:** {user_name}\n🏆 **sᴄᴏʀᴇ ᴘᴏɪɴᴛs:** `{score_val}`")
