@@ -1,10 +1,11 @@
+from pyrogram import Client, filters
+from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery
+from database import scores
+from datetime import datetime
 import os
-from pyrogram import Client, filters, enums
-from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton
-from database import scores # Database se scores fetch karne ke liye
 
 # Owner ID environmental variables se uthayega
-OWNER_ID = int(os.environ.get("OWNER_ID", "7589623332"))
+OWNER_ID = int(os.environ.get("OWNER_ID", "0"))
 
 @Client.on_message(filters.command("help"))
 async def help_cmd(client, message):
@@ -37,7 +38,7 @@ async def help_cmd(client, message):
             InlineKeyboardButton("ʟᴇᴀᴅᴇʀʙᴏᴀʀᴅ & sᴄᴏʀᴇs", callback_data="lb_scores")
         ],
         [
-            InlineKeyboardButton("ᴏᴡɴᴇʀ", url="tg://user?id=7589623332")
+            InlineKeyboardButton("ᴏᴡɴᴇʀ", url="https://t.me/naxeyi")
         ]
     ]
     await message.reply_text(text, reply_markup=InlineKeyboardMarkup(buttons))
@@ -59,27 +60,24 @@ async def how_to_play(client, cb):
 **ʙᴀsɪᴄ ᴄᴏᴍᴍᴀɴᴅs:**
 • /new - sᴛᴀʀᴛ ᴀ ɴᴇᴡ ɢᴀᴍᴇ
 • /end - ᴇɴᴅ ᴄᴜʀʀᴇɴᴛ ɢᴀᴍᴇ (ᴠᴏᴛɪɴɢ ᴏʀ ᴀᴅᴍɪɴ ᴏɴʟʏ)
-• /help - sʜᴏᴡ ᴛʜɪs ʜᴇʟᴘ ᴍᴇɴᴜ
+• /help - sʜᴏᴡ ᴛʜɪs ʜᴇʟᴘ ᴍᴇɴᴜ, /score - ᴄʜᴇᴄᴋ ʏᴏᴜʀ ᴏʀ ᴏᴛʜᴇʀs ᴛᴏᴛᴀʟ sᴄᴏʀᴇ
 • /daily - ᴘʟᴀʏ ᴅᴀɪʟʏ ᴡᴏʀᴅsᴇᴇᴋ (ᴘʀɪᴠᴀᴛᴇ ᴄʜᴀᴛ ᴏɴʟʏ)
 • /pausedaily - ᴘᴀᴜsᴇ ᴅᴀɪʟʏ ᴍᴏᴅᴇ ᴀɴᴅ ɢᴏ ʙᴀᴄᴋ ᴛᴏ ɴᴏʀᴍᴀʟ ɢᴀᴍᴇs
-• /score - ᴄʜᴇᴄᴋ ʏᴏᴜʀ ᴏʀ ᴏᴛʜᴇʀs ᴘᴏɪɴᴛs
 """
     await cb.edit_message_text(text, reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("« ʙᴀᴄᴋ", callback_data="help_menu")]]))
 
 @Client.on_callback_query(filters.regex("lb_scores"))
 async def lb_scores_callback(client, cb):
-    text = """
-🏆 **ʟᴇᴀᴅᴇʀʙᴏᴀʀᴅ & sᴄᴏʀᴇs**
-
-ᴄʜᴇᴄᴋ ᴡʜᴏ ɪs ʀᴜʟɪɴɢ ᴛʜᴇ ᴡᴏʀᴅsᴇᴇᴋ ᴡᴏʀʟᴅ!
-
-• ᴜsᴇ /leaderboard ɪɴ ᴛʜᴇ ɢʀᴏᴜᴘ ᴛᴏ sᴇᴇ ᴛᴏᴘ ᴘʟᴀʏᴇʀs.
-• ᴜsᴇ /score ᴛᴏ ᴄʜᴇᴄᴋ ʏᴏᴜʀ ᴏᴡɴ ᴘᴏɪɴᴛs.
-• ʏᴏᴜ ᴄᴀɴ ᴀʟsᴏ ʀᴇᴘʟʏ ᴛᴏ ᴀ ᴜsᴇʀ ᴡɪᴛʜ /score ᴛᴏ sᴇᴇ ᴛʜᴇɪʀ ʀᴀɴᴋ.
-
-ᴘᴏɪɴᴛs ᴀʀᴇ ᴀᴡᴀʀᴅᴇᴅ ʙᴀsᴇᴅ ᴏɴ ʜᴏᴡ ғᴀsᴛ ʏᴏᴜ ɢᴜᴇss ᴛʜᴇ ᴡᴏʀᴅ!
-"""
-    await cb.edit_message_text(text, reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("« ʙᴀᴄᴋ", callback_data="help_menu")]]))
+    # Leaderboard trigger logic
+    await cb.answer()
+    await cb.message.edit_text(
+        "🏆 **ʟᴇᴀᴅᴇʀʙᴏᴀʀᴅ ᴍᴇɴᴜ**\n\nᴄʟɪᴄᴋ ʙᴇʟᴏᴡ ᴛᴏ ᴏᴘᴇɴ ᴛʜᴇ ɢʟᴏʙᴀʟ ᴏʀ ᴄʜᴀᴛ-sᴘᴇᴄɪꜰɪᴄ sᴛᴀᴛɪsᴛɪᴄs.",
+        reply_markup=InlineKeyboardMarkup([[
+            InlineKeyboardButton("✨ ᴏᴘᴇɴ ʟᴇᴀᴅᴇʀʙᴏᴀʀᴅ ✨", callback_data="lb_global_month")
+        ], [
+            InlineKeyboardButton("« ʙᴀᴄᴋ", callback_data="help_menu")
+        ]])
+    )
 
 @Client.on_callback_query(filters.regex("help_menu"))
 async def help_menu_callback(client, cb):
@@ -112,28 +110,32 @@ async def help_menu_callback(client, cb):
             InlineKeyboardButton("ʟᴇᴀᴅᴇʀʙᴏᴀʀᴅ & sᴄᴏʀᴇs", callback_data="lb_scores")
         ],
         [
-            InlineKeyboardButton("ᴏᴡɴᴇʀ", url="tg://user?id=7589623332")
+            InlineKeyboardButton("ᴏᴡɴᴇʀ", url="https://t.me/naxeyi")
         ]
     ]
     await cb.edit_message_text(text, reply_markup=InlineKeyboardMarkup(buttons))
 
 @Client.on_message(filters.command("score"))
-async def get_score(client, message):
+async def score_cmd(client, message):
     if message.reply_to_message:
-        user_id = message.reply_to_message.from_user.id
-        user_name = message.reply_to_message.from_user.first_name
+        target_user = message.reply_to_message.from_user
     elif len(message.command) > 1:
         try:
-            user_id = int(message.command[1])
-            user = await client.get_users(user_id)
-            user_name = user.first_name
-        except:
-            return await message.reply_text("❌ **ɪɴᴠᴀʟɪᴅ ᴜsᴇʀ ɪᴅ.**")
+            user_input = message.command[1]
+            if user_input.isdigit():
+                target_user = await client.get_users(int(user_input))
+            else:
+                target_user = await client.get_users(user_input)
+        except Exception:
+            return await message.reply_text("❌ **ᴄᴏᴜʟᴅ ɴᴏᴛ ꜰɪɴᴅ ᴛʜᴀᴛ ᴜsᴇʀ.**")
     else:
-        user_id = message.from_user.id
-        user_name = message.from_user.first_name
+        target_user = message.from_user
 
-    data = await scores.find_one({"user_id": user_id, "chat_id": message.chat.id})
-    score_val = data.get("score", 0) if data else 0
-    
-    await message.reply_text(f"👤 **ᴜsᴇʀ:** {user_name}\n🏆 **sᴄᴏʀᴇ ᴘᴏɪɴᴛs:** `{score_val}`")
+    # Database query: All Time Global Points Only
+    user_data = await scores.find_one({"user_id": target_user.id, "type": "all_time", "chat_id": "global"})
+    total_pts = user_data.get("pts", 0) if user_data else 0
+
+    await message.reply_text(
+        f"👤 **ᴜsᴇʀ:** {target_user.mention}\n"
+        f"🏆 **ᴛᴏᴛᴀʟ sᴄᴏʀᴇ ᴀʟʟ ᴛʜᴇ ᴛɪᴍᴇ:** `{total_pts:,} ᴘᴛs` (ᴀʟʟ ᴛɪᴍᴇ)"
+    )
