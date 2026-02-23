@@ -35,7 +35,7 @@ async def help_cmd(client, message):
     buttons = [
         [
             InlineKeyboardButton("ʜᴏᴡ ᴛᴏ ᴘʟᴀʏ", callback_data="how_to_play"), 
-            InlineKeyboardButton("ʟᴇᴀᴅᴇʀʙᴏᴀʀᴅ & sᴄᴏʀᴇs", callback_data="lb_scores")
+            InlineKeyboardButton("ʟᴇᴀᴅᴇʀʙᴏᴀʀᴅ & sᴄᴏʀᴇs", callback_data="show_lb_info")
         ],
         [
             InlineKeyboardButton("ᴏᴡɴᴇʀ", url="https://t.me/naxeyi")
@@ -60,23 +60,29 @@ async def how_to_play(client, cb):
 **ʙᴀsɪᴄ ᴄᴏᴍᴍᴀɴᴅs:**
 • /new - sᴛᴀʀᴛ ᴀ ɴᴇᴡ ɢᴀᴍᴇ
 • /end - ᴇɴᴅ ᴄᴜʀʀᴇɴᴛ ɢᴀᴍᴇ (ᴠᴏᴛɪɴɢ ᴏʀ ᴀᴅᴍɪɴ ᴏɴʟʏ)
-• /help - sʜᴏᴡ ᴛʜɪs ʜᴇʟᴘ ᴍᴇɴᴜ, /score - ᴄʜᴇᴄᴋ ʏᴏᴜʀ ᴏʀ ᴏᴛʜᴇʀs ᴛᴏᴛᴀʟ sᴄᴏʀᴇ
+• /help - sʜᴏᴡ ᴛʜɪs ʜᴇʟᴘ ᴍᴇɴᴜ
 • /daily - ᴘʟᴀʏ ᴅᴀɪʟʏ ᴡᴏʀᴅsᴇᴇᴋ (ᴘʀɪᴠᴀᴛᴇ ᴄʜᴀᴛ ᴏɴʟʏ)
 • /pausedaily - ᴘᴀᴜsᴇ ᴅᴀɪʟʏ ᴍᴏᴅᴇ ᴀɴᴅ ɢᴏ ʙᴀᴄᴋ ᴛᴏ ɴᴏʀᴍᴀʟ ɢᴀᴍᴇs
 """
     await cb.edit_message_text(text, reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("« ʙᴀᴄᴋ", callback_data="help_menu")]]))
 
-@Client.on_callback_query(filters.regex("lb_scores"))
-async def lb_scores_callback(client, cb):
-    # Leaderboard trigger logic
+@Client.on_callback_query(filters.regex("show_lb_info"))
+async def lb_info_callback(client, cb):
+    # Modified to look premium and show the command usage
     await cb.answer()
-    await cb.message.edit_text(
-        "🏆 **ʟᴇᴀᴅᴇʀʙᴏᴀʀᴅ ᴍᴇɴᴜ**\n\nᴄʟɪᴄᴋ ʙᴇʟᴏᴡ ᴛᴏ ᴏᴘᴇɴ ᴛʜᴇ ɢʟᴏʙᴀʟ ᴏʀ ᴄʜᴀᴛ-sᴘᴇᴄɪꜰɪᴄ sᴛᴀᴛɪsᴛɪᴄs.",
-        reply_markup=InlineKeyboardMarkup([[
-            InlineKeyboardButton("✨ ᴏᴘᴇɴ ʟᴇᴀᴅᴇʀʙᴏᴀʀᴅ ✨", callback_data="lb_global_month")
-        ], [
-            InlineKeyboardButton("« ʙᴀᴄᴋ", callback_data="help_menu")
-        ]])
+    text = """
+🏆 **ʟᴇᴀᴅᴇʀʙᴏᴀʀᴅ & sᴛᴀᴛɪsᴛɪᴄs**
+
+ᴛᴏ ᴠɪᴇᴡ ᴛʜᴇ ꜰᴜʟʟ ɪɴᴛᴇʀᴀᴄᴛɪᴠᴇ ʟᴇᴀᴅᴇʀʙᴏᴀʀᴅ, ᴘʟᴇᴀsᴇ ᴜsᴇ ᴛʜᴇ ꜰᴏʟʟᴏᴡɪɴɢ ᴄᴏᴍᴍᴀɴᴅ ɪɴ ᴛʜᴇ ᴄʜᴀᴛ:
+
+📌 `/leaderboard`
+
+ʏᴏᴜ ᴄᴀɴ ᴀʟsᴏ ᴄʜᴇᴄᴋ ʏᴏᴜʀ ᴏʀ ᴏᴛʜᴇʀs ᴘᴇʀsᴏɴᴀʟ ʟɪꜰᴇᴛɪᴍᴇ sᴄᴏʀᴇ ᴜsɪɴɢ:
+📌 `/score`
+"""
+    await cb.edit_message_text(
+        text, 
+        reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("« ʙᴀᴄᴋ", callback_data="help_menu")]])
     )
 
 @Client.on_callback_query(filters.regex("help_menu"))
@@ -107,7 +113,7 @@ async def help_menu_callback(client, cb):
     buttons = [
         [
             InlineKeyboardButton("ʜᴏᴡ ᴛᴏ ᴘʟᴀʏ", callback_data="how_to_play"), 
-            InlineKeyboardButton("ʟᴇᴀᴅᴇʀʙᴏᴀʀᴅ & sᴄᴏʀᴇs", callback_data="lb_scores")
+            InlineKeyboardButton("ʟᴇᴀᴅᴇʀʙᴏᴀʀᴅ & sᴄᴏʀᴇs", callback_data="show_lb_info")
         ],
         [
             InlineKeyboardButton("ᴏᴡɴᴇʀ", url="https://t.me/naxeyi")
